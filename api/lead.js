@@ -1,10 +1,10 @@
-// =============================================================
-// ✅ /api/lead.js — automatische cap-detectie & tijdelijke pauze (werkende PATCH)
-// =============================================================
+// api/lead.js — UK Version
+// Mapt UK velden naar Databowl & handelt caps af
+
 import querystring from "querystring";
 
 export default async function handler(req, res) {
-  // ✅ Universele CORS headers
+  // ✅ CORS Headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Authorization");
@@ -14,31 +14,32 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
+    
+    // 🇬🇧 UK Veldnamen
     const {
       cid, sid, firstname, lastname, email, gender, dob,
-      postcode, straat, huisnummer, woonplaats, telefoon,
+      postcode, address1, address2, city, phone1,
       is_shortform, f_2014_coreg_answer, f_2575_coreg_answer_dropdown,
       f_1453_campagne_url, t_id, offer_id, aff_id, sub_id
     } = body;
 
-    // ===== Detecteer shortform lead
+    // Detecteer shortform (geen adres/telefoon)
     const isShort =
-      String(cid) === "925" ||
       is_shortform === true ||
-      (!postcode && !telefoon && !woonplaats);
+      (!postcode && !phone1 && !city);
 
     const params = new URLSearchParams();
 
-    // ===== Basisvelden
+    // ===== Basisvelden =====
     if (cid) params.set("cid", cid);
     if (sid) params.set("sid", sid);
     if (firstname) params.set("f_3_firstname", firstname);
     if (lastname) params.set("f_4_lastname", lastname);
     if (email) params.set("f_1_email", email);
-    if (gender) params.set("f_2_title", gender);
-    if (dob) params.set("f_5_dob", dob);
+    if (gender) params.set("f_2_title", gender); // Verwacht: Mr, Mrs, Ms, Miss
+    if (dob) params.set("f_5_dob", dob); // Verwacht: YYYY-MM-DD
 
-    // ===== Campagne URL + tracking
+    // ===== Tracking =====
     if (f_1453_campagne_url) params.set("f_1453_campagne_url", f_1453_campagne_url);
     if (t_id) params.set("f_1322_transaction_id", t_id);
     if (offer_id) params.set("f_1687_offer_id", offer_id);
@@ -46,27 +47,25 @@ export default async function handler(req, res) {
     if (sub_id) params.set("f_1684_sub_id", sub_id);
     if (body.f_17_ipaddress) params.set("f_17_ipaddress", body.f_17_ipaddress);
 
-    // ✅ Optindate toevoegen
     const optindate = body.f_55_optindate || new Date().toISOString().split(".")[0] + "+0000";
     params.set("f_55_optindate", optindate);
 
-    // ===== Alleen longformvelden bij longform leads
+    // ===== UK Longform Velden =====
     if (!isShort) {
       if (postcode) params.set("f_11_postcode", postcode);
-      if (straat) params.set("f_6_address1", straat);
-      if (huisnummer) params.set("f_7_address2", huisnummer);
-      if (woonplaats) params.set("f_9_towncity", woonplaats);
-      if (telefoon) params.set("f_12_phone1", telefoon);
+      if (address1) params.set("f_6_address1", address1);
+      if (address2) params.set("f_7_address2", address2); // Optioneel
+      if (city)     params.set("f_9_towncity", city);
+      if (phone1)   params.set("f_12_phone1", phone1);
     }
 
-    // ===== Coreg antwoorden
+    // ===== Coreg Antwoorden =====
     if (f_2014_coreg_answer?.trim()) params.set("f_2014_coreg_answer", f_2014_coreg_answer.trim());
     if (f_2575_coreg_answer_dropdown?.trim()) params.set("f_2575_coreg_answer_dropdown", f_2575_coreg_answer_dropdown.trim());
 
-    // ===== Databowl endpoint
+    // ===== Databowl Submit =====
     const databowlUrl = "https://crsadvertising.databowl.com/api/v1/lead";
-    console.log("🚀 Databowl POST:", params.toString());
-
+    
     const resp = await fetch(databowlUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -76,76 +75,53 @@ export default async function handler(req, res) {
     const text = await resp.text();
     const json = JSON.parse(text || "{}");
 
-    // ===== Check op foutmeldingen van Databowl
+    // ===== CAP Handling (Directus Pause) =====
     if (json?.error?.msg === "TOTAL_CAP_REACHED") {
-      console.warn(`⚠️ CAP REACHED for campaign cid=${cid}, sid=${sid}`);
-
-      // 🕐 Pauzeer tot volgende dag 00:00 UTC
+      console.warn(`⚠️ CAP REACHED for UK campaign cid=${cid}, sid=${sid}`);
+      
       const tomorrow = new Date();
       tomorrow.setUTCHours(0, 0, 0, 0);
       tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-      // 🔍 Functie om één collectie bij te werken
-      async function pauseInCollection(collection) {
+      // Functie om Directus items te pauzeren
+      const pauseCollection = async (collection) => {
         try {
           const findRes = await fetch(
-            `${process.env.DIRECTUS_URL}/items/${collection}?filter[cid][_eq]=${cid}&filter[sid][_eq]=${sid}&fields=id,is_live`,
-            {
-              headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` }
-            }
+            `${process.env.DIRECTUS_URL}/items/${collection}?filter[cid][_eq]=${cid}&filter[sid][_eq]=${sid}&fields=id`,
+            { headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` } }
           );
           const findJson = await findRes.json();
           const item = findJson.data?.[0];
 
-          if (!item) {
-            console.warn(`⚠️ Geen item gevonden in ${collection} voor cid=${cid}`);
-            return;
+          if (item) {
+            await fetch(`${process.env.DIRECTUS_URL}/items/${collection}/${item.id}`, {
+              method: "PATCH",
+              headers: {
+                "Authorization": `Bearer ${process.env.DIRECTUS_TOKEN}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ is_live: false, paused_until: tomorrow.toISOString() })
+            });
+            console.log(`🚫 ${collection} ${item.id} paused until tomorrow`);
           }
+        } catch (e) { console.error("Pause error:", e); }
+      };
 
-          // 🧩 PATCH met specifiek ID
-          const patchRes = await fetch(`${process.env.DIRECTUS_URL}/items/${collection}/${item.id}`, {
-            method: "PATCH",
-            headers: {
-              "Authorization": `Bearer ${process.env.DIRECTUS_TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              is_live: false,
-              paused_until: tomorrow.toISOString()
-            })
-          });
+      await pauseCollection("coreg_campaigns");
+      await pauseCollection("co_sponsors");
 
-          if (!patchRes.ok) {
-            const errText = await patchRes.text();
-            console.error(`❌ PATCH-fout in ${collection}:`, errText);
-          } else {
-            console.log(`🚫 ${collection} ${item.id} gepauzeerd tot ${tomorrow.toISOString()}`);
-          }
-        } catch (err) {
-          console.error(`❌ Pauzeren mislukt voor ${collection}:`, err);
-        }
-      }
-
-      // 🔁 Beide collecties bijwerken
-      await pauseInCollection("coreg_campaigns");
-      await pauseInCollection("co_sponsors");
-
-      return res.status(200).json({
-        success: false,
-        message: `Campaign ${cid} paused until ${tomorrow.toISOString()}`
-      });
+      return res.status(200).json({ success: false, message: "Cap reached, campaign paused" });
     }
 
-    // ===== Normale foutafhandeling
     if (!resp.ok) {
       console.error("❌ Databowl error:", text);
       return res.status(resp.status).json({ success: false, error: text });
     }
 
-    console.log("✅ Lead succesvol naar Databowl:", text);
     res.status(200).json({ success: true, response: text });
+
   } catch (err) {
-    console.error("💥 Lead API fout:", err);
+    console.error("💥 Lead API Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 }
