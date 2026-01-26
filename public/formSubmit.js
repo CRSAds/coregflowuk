@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Advanced DOB Logic)
+// ✅ formSubmit.js — UK Version (Smart DOB + Lead Submit CID 1123)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
@@ -49,7 +49,6 @@ if (!window.formSubmitInitialized) {
       // Zorg dat clicken ook de cursor goed zet
       dobInput.addEventListener("click", () => {
          const digits = getDigits();
-         // Cursor aan het eind van wat al is ingevuld
          const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
          setCursor(cursorMap[digits.length] ?? 0);
       });
@@ -58,28 +57,18 @@ if (!window.formSubmitInitialized) {
         const key = e.key;
         const digits = getDigits();
 
-        // Navigatie toestaan
         if (["ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
 
         e.preventDefault();
 
-        // BACKSPACE
         if (key === "Backspace") {
           digits.pop();
-        }
-
-        // DIGIT INPUT
-        else if (/^\d$/.test(key) && digits.length < 8) {
-          // Dag logica: als 1e cijfer > 3, dan bedoelt men waarschijnlijk 04, 05 etc.
-          // (UK/NL datum formaat is DD eerst, dus >3 kan geen start van dag zijn behalve met 0)
+        } else if (/^\d$/.test(key) && digits.length < 8) {
           if (digits.length === 0 && key > "3") {
             digits.push("0", key);
-          }
-          // Maand logica: als 1e maandcijfer > 1, dan 02, 03... 09
-          else if (digits.length === 2 && key > "1") {
+          } else if (digits.length === 2 && key > "1") {
             digits.push("0", key);
-          }
-          else {
+          } else {
             digits.push(key);
           }
         }
@@ -87,12 +76,9 @@ if (!window.formSubmitInitialized) {
         const value = render(digits);
         dobInput.value = value;
 
-        // Cursor positions map (houdt rekening met de " / " karakters)
-        // 0,1 zijn dag | 5,6 zijn maand | 10,11,12,13 zijn jaar
         const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
         setCursor(cursorMap[digits.length] ?? 14);
 
-        // Opslaan als volledige digits zijn ingevuld
         if (digits.length === 8) {
            sessionStorage.setItem("dob_full", digits.join(""));
         }
@@ -154,16 +140,13 @@ if (!window.formSubmitInitialized) {
     
     // DOB Conversie: DDMMYYYY -> YYYY-MM-DD
     let dob = "";
-    // We pakken de ruwe digits uit storage of uit het veld als fallback
     let rawDigits = sessionStorage.getItem("dob_full");
     if (!rawDigits) {
-       // Fallback: probeer waarde uit input te scrapen
        const el = document.getElementById("dob");
        if (el) rawDigits = el.value.replace(/\D/g, "");
     }
 
     if (rawDigits && rawDigits.length === 8) {
-       // yyyy-mm-dd
        dob = `${rawDigits.slice(4,8)}-${rawDigits.slice(2,4)}-${rawDigits.slice(0,2)}`;
     }
 
@@ -224,9 +207,8 @@ if (!window.formSubmitInitialized) {
   // -----------------------------------------------------------
   
   // SHORT FORM
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", async (e) => { // 🇬🇧 Async toegevoegd
     // Check op knop binnen formulier
-    // Ondersteunt zowel .flow-next als button[type=submit]
     if (e.target.matches(".flow-next") && e.target.closest("#lead-form")) {
       const form = document.getElementById("lead-form");
       
@@ -257,6 +239,20 @@ if (!window.formSubmitInitialized) {
          return;
       }
       sessionStorage.setItem("dob_full", dobDigits);
+
+      // 🇬🇧 UK LOGICA: DIRECT VERZENDEN NAAR CID 1123
+      try {
+        const ukBasePayload = await window.buildPayload({
+          cid: "1123",  // 🇬🇧 Hardcoded UK Base Campaign
+          sid: "1",     // Default Source ID
+          is_shortform: true
+        });
+        
+        console.log("🚀 Sending UK Shortform to CID 1123...");
+        window.fetchLead(ukBasePayload); 
+      } catch (err) {
+        console.error("Shortform submit error:", err);
+      }
 
       sessionStorage.setItem("shortFormCompleted", "true");
       document.dispatchEvent(new Event("shortFormSubmitted"));
