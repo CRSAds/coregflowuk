@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Smart DOB + Lead Submit CID 1123)
+// ✅ formSubmit.js — UK Version (Smart DOB + Gray Placeholder Fix)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
@@ -17,19 +17,28 @@ if (!window.formSubmitInitialized) {
       if (val) sessionStorage.setItem(key, val);
     });
 
-    // 🇬🇧 DOB Logic (The "Smart" Dutch implementation adapted for UK)
+    // 🇬🇧 DOB Logic (Smart Masking + Gray Placeholder Style)
     const dobInput = document.getElementById("dob");
     if (dobInput) {
       const TEMPLATE = "DD / MM / YYYY";
 
+      // Helper: Toggle grijs/zwart
+      const updatePlaceholderStyle = () => {
+        if (dobInput.value === TEMPLATE) {
+          dobInput.classList.add("is-placeholder");
+        } else {
+          dobInput.classList.remove("is-placeholder");
+        }
+      };
+
       // Init
       dobInput.value = TEMPLATE;
       dobInput.inputMode = "numeric";
+      updatePlaceholderStyle(); // Direct grijs maken bij start
 
       const setCursor = (pos) => requestAnimationFrame(() => dobInput.setSelectionRange(pos, pos));
       const getDigits = () => dobInput.value.replace(/\D/g, "").split("");
 
-      // Render functie (vertaalt digits naar visual string met YYYY)
       const render = (digits) => {
         const d = [...digits, "", "", "", "", "", "", "", ""];
         return (
@@ -42,11 +51,11 @@ if (!window.formSubmitInitialized) {
       dobInput.addEventListener("focus", () => {
         if (dobInput.value === "" || dobInput.value === TEMPLATE) {
           dobInput.value = TEMPLATE;
+          updatePlaceholderStyle();
           setCursor(0);
         }
       });
 
-      // Zorg dat clicken ook de cursor goed zet
       dobInput.addEventListener("click", () => {
          const digits = getDigits();
          const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
@@ -75,6 +84,7 @@ if (!window.formSubmitInitialized) {
 
         const value = render(digits);
         dobInput.value = value;
+        updatePlaceholderStyle(); // Update kleur na elke wijziging
 
         const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
         setCursor(cursorMap[digits.length] ?? 14);
@@ -138,7 +148,7 @@ if (!window.formSubmitInitialized) {
     const ip = await getIpOnce();
     const t_id = sessionStorage.getItem("t_id") || crypto.randomUUID();
     
-    // DOB Conversie: DDMMYYYY -> YYYY-MM-DD
+    // DOB Conversie
     let dob = "";
     let rawDigits = sessionStorage.getItem("dob_full");
     if (!rawDigits) {
@@ -185,7 +195,7 @@ if (!window.formSubmitInitialized) {
   }
   window.buildPayload = buildPayload;
 
-  // API Call
+  // API Call (Met Error Logging)
   async function fetchLead(payload) {
     const key = `${payload.cid}_${payload.sid}`;
     if (window.submittedCampaigns.has(key)) return { skipped: true };
@@ -196,9 +206,29 @@ if (!window.formSubmitInitialized) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+      
+      const text = await res.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        console.error("❌ Invalid JSON response from API:", text);
+        return { success: false, error: text };
+      }
+
+      if (!res.ok || json.success === false) {
+        console.error("❌ API Error (Lead failed):", json);
+        return { success: false, ...json };
+      }
+
+      console.log("✅ Lead sent successfully:", json);
       window.submittedCampaigns.add(key);
-      return await res.json();
-    } catch (err) { return { success: false }; }
+      return json;
+
+    } catch (err) { 
+      console.error("❌ Network/Fetch Error:", err);
+      return { success: false, error: err.message }; 
+    }
   }
   window.fetchLead = fetchLead;
 
@@ -206,9 +236,8 @@ if (!window.formSubmitInitialized) {
   // 3. Submit Handlers
   // -----------------------------------------------------------
   
-  // SHORT FORM
-  document.addEventListener("click", async (e) => { // 🇬🇧 Async toegevoegd
-    // Check op knop binnen formulier
+  // SHORT FORM HANDLER
+  document.addEventListener("click", async (e) => {
     if (e.target.matches(".flow-next") && e.target.closest("#lead-form")) {
       const form = document.getElementById("lead-form");
       
@@ -221,7 +250,7 @@ if (!window.formSubmitInitialized) {
 
       e.preventDefault(); 
 
-      // Data opslaan
+      // Opslaan
       const genderEl = form.querySelector("input[name='gender']:checked");
       if (genderEl) sessionStorage.setItem("gender", genderEl.value);
 
@@ -240,15 +269,15 @@ if (!window.formSubmitInitialized) {
       }
       sessionStorage.setItem("dob_full", dobDigits);
 
-      // 🇬🇧 UK LOGICA: DIRECT VERZENDEN NAAR CID 1123
+      // 🇬🇧 UK LOGICA: DIRECT VERZENDEN NAAR CID 1123 / SID 34
       try {
         const ukBasePayload = await window.buildPayload({
-          cid: "1123",  // 🇬🇧 Hardcoded UK Base Campaign
-          sid: "34",     // Default Source ID
+          cid: "1123",  // 🇬🇧 Hardcoded CID
+          sid: "34",    // 🇬🇧 Hardcoded SID
           is_shortform: true
         });
         
-        console.log("🚀 Sending UK Shortform to CID 1123...");
+        console.log("🚀 Sending UK Shortform to CID 1123 (SID 34)...");
         window.fetchLead(ukBasePayload); 
       } catch (err) {
         console.error("Shortform submit error:", err);
@@ -259,7 +288,7 @@ if (!window.formSubmitInitialized) {
     }
   });
 
-  // LONG FORM
+  // LONG FORM HANDLER
   document.addEventListener("click", async e => {
     if (!e.target.matches("#submit-long-form")) return;
     e.preventDefault();
