@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     }));
 
     // 3️⃣ Upsert naar Supabase
-    const sr = await fetch(`${SUPABASE_URL}/rest/v1/calls`, {
+    const sr = await fetch(`${SUPABASE_URL}/rest/v1/calls_uk`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_KEY,
