@@ -114,7 +114,7 @@ export default async function handler(req, res) {
     // ♻️ Upsert naar Supabase (idempotent)
     // --------------------------------------------------
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/affise_payouts?on_conflict=t_id`,
+      `${SUPABASE_URL}/rest/v1/affise_payouts_uk?on_conflict=t_id`,
       {
         method: "POST",
         headers: {
