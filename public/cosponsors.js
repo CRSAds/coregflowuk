@@ -171,7 +171,7 @@
       try {
         // 🇬🇧 WIJZIGING: Relatief pad naar EIGEN API (/api/cosponsors.js)
         const res = await fetch(
-          "/api/cosponsors.js",
+          "https://coregflowuk.vercel.app/api/campaignVisuals.js",
           { cache: "no-store" }
         );
         const json = await res.json();
