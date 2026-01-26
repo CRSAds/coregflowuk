@@ -1,4 +1,6 @@
-// public/formSubmit.js — UK Version (Improved DOB Masking)
+// =============================================================
+// ✅ formSubmit.js — UK Version (Advanced DOB Logic)
+// =============================================================
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
@@ -15,39 +17,89 @@ if (!window.formSubmitInitialized) {
       if (val) sessionStorage.setItem(key, val);
     });
 
-    // 🇬🇧 DOB Masking: Automatisch invullen van slashes
+    // 🇬🇧 DOB Logic (The "Smart" Dutch implementation adapted for UK)
     const dobInput = document.getElementById("dob");
     if (dobInput) {
-      dobInput.addEventListener("input", function(e) {
-        // Huidige waarde zonder niet-cijfers
-        let v = this.value.replace(/\D/g, "");
-        
-        // Backspace check: als de gebruiker wist, niet forceren
-        if (e.inputType === "deleteContentBackward") return;
+      const TEMPLATE = "DD / MM / YYYY";
 
-        // Maximaal 8 cijfers (ddmmyyyy)
-        if (v.length > 8) v = v.slice(0, 8);
+      // Init
+      dobInput.value = TEMPLATE;
+      dobInput.inputMode = "numeric";
 
-        // Opbouwen met slashes
-        if (v.length > 4) {
-          this.value = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
-        } else if (v.length > 2) {
-          this.value = `${v.slice(0, 2)} / ${v.slice(2)}`;
-        } else {
-          this.value = v;
+      const setCursor = (pos) => requestAnimationFrame(() => dobInput.setSelectionRange(pos, pos));
+      const getDigits = () => dobInput.value.replace(/\D/g, "").split("");
+
+      // Render functie (vertaalt digits naar visual string met YYYY)
+      const render = (digits) => {
+        const d = [...digits, "", "", "", "", "", "", "", ""];
+        return (
+          `${d[0] || "D"}${d[1] || "D"} / ` +
+          `${d[2] || "M"}${d[3] || "M"} / ` +
+          `${d[4] || "Y"}${d[5] || "Y"}${d[6] || "Y"}${d[7] || "Y"}`
+        );
+      };
+
+      dobInput.addEventListener("focus", () => {
+        if (dobInput.value === "" || dobInput.value === TEMPLATE) {
+          dobInput.value = TEMPLATE;
+          setCursor(0);
         }
       });
 
-      // Zorg dat backspace goed werkt bij slashes
-      dobInput.addEventListener("keydown", function(e) {
-        if (e.key === "Backspace" && (this.value.endsWith(" / ") || this.value.endsWith("/ "))) {
-             this.value = this.value.slice(0, -3); // Verwijder de " / " set
-             e.preventDefault();
+      // Zorg dat clicken ook de cursor goed zet
+      dobInput.addEventListener("click", () => {
+         const digits = getDigits();
+         // Cursor aan het eind van wat al is ingevuld
+         const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
+         setCursor(cursorMap[digits.length] ?? 0);
+      });
+
+      dobInput.addEventListener("keydown", (e) => {
+        const key = e.key;
+        const digits = getDigits();
+
+        // Navigatie toestaan
+        if (["ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
+
+        e.preventDefault();
+
+        // BACKSPACE
+        if (key === "Backspace") {
+          digits.pop();
+        }
+
+        // DIGIT INPUT
+        else if (/^\d$/.test(key) && digits.length < 8) {
+          // Dag logica: als 1e cijfer > 3, dan bedoelt men waarschijnlijk 04, 05 etc.
+          // (UK/NL datum formaat is DD eerst, dus >3 kan geen start van dag zijn behalve met 0)
+          if (digits.length === 0 && key > "3") {
+            digits.push("0", key);
+          }
+          // Maand logica: als 1e maandcijfer > 1, dan 02, 03... 09
+          else if (digits.length === 2 && key > "1") {
+            digits.push("0", key);
+          }
+          else {
+            digits.push(key);
+          }
+        }
+
+        const value = render(digits);
+        dobInput.value = value;
+
+        // Cursor positions map (houdt rekening met de " / " karakters)
+        // 0,1 zijn dag | 5,6 zijn maand | 10,11,12,13 zijn jaar
+        const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
+        setCursor(cursorMap[digits.length] ?? 14);
+
+        // Opslaan als volledige digits zijn ingevuld
+        if (digits.length === 8) {
+           sessionStorage.setItem("dob_full", digits.join(""));
         }
       });
     }
 
-    // 🇬🇧 Phone Validation (alleen cijfers, max 11)
+    // 🇬🇧 Phone Validation
     const phoneInput = document.getElementById("phone1");
     if (phoneInput) {
       phoneInput.inputMode = "numeric";
@@ -80,7 +132,7 @@ if (!window.formSubmitInitialized) {
     }
   });
 
-  // Helper: IP ophalen
+  // Helper: IP
   async function getIpOnce() {
     let ip = sessionStorage.getItem("user_ip");
     if (ip) return ip;
@@ -94,20 +146,25 @@ if (!window.formSubmitInitialized) {
   }
 
   // -----------------------------------------------------------
-  // 2. Payload Builder (Data klaarmaken voor verzenden)
+  // 2. Payload Builder
   // -----------------------------------------------------------
   async function buildPayload(campaign = {}) {
     const ip = await getIpOnce();
     const t_id = sessionStorage.getItem("t_id") || crypto.randomUUID();
     
-    // DOB Converteren: dd / mm / yyyy -> yyyy-mm-dd
+    // DOB Conversie: DDMMYYYY -> YYYY-MM-DD
     let dob = "";
-    const rawDob = sessionStorage.getItem("dob_full") || ""; 
-    const cleanDob = rawDob.replace(/\D/g, ""); // "01011990"
-    
-    if (cleanDob.length === 8) {
+    // We pakken de ruwe digits uit storage of uit het veld als fallback
+    let rawDigits = sessionStorage.getItem("dob_full");
+    if (!rawDigits) {
+       // Fallback: probeer waarde uit input te scrapen
+       const el = document.getElementById("dob");
+       if (el) rawDigits = el.value.replace(/\D/g, "");
+    }
+
+    if (rawDigits && rawDigits.length === 8) {
        // yyyy-mm-dd
-       dob = `${cleanDob.slice(4,8)}-${cleanDob.slice(2,4)}-${cleanDob.slice(0,2)}`;
+       dob = `${rawDigits.slice(4,8)}-${rawDigits.slice(2,4)}-${rawDigits.slice(0,2)}`;
     }
 
     const payload = {
@@ -117,7 +174,7 @@ if (!window.formSubmitInitialized) {
       firstname:  sessionStorage.getItem("firstname") || "",
       lastname:   sessionStorage.getItem("lastname")  || "",
       email:      sessionStorage.getItem("email")     || "",
-      dob:        dob, // ISO formaat
+      dob:        dob,
       
       postcode:   sessionStorage.getItem("postcode")  || "",
       address1:   sessionStorage.getItem("address1")  || "",
@@ -169,6 +226,7 @@ if (!window.formSubmitInitialized) {
   // SHORT FORM
   document.addEventListener("click", (e) => {
     // Check op knop binnen formulier
+    // Ondersteunt zowel .flow-next als button[type=submit]
     if (e.target.matches(".flow-next") && e.target.closest("#lead-form")) {
       const form = document.getElementById("lead-form");
       
@@ -190,13 +248,15 @@ if (!window.formSubmitInitialized) {
          if (el) sessionStorage.setItem(id, el.value.trim());
       });
 
-      // DOB opslaan
-      const dobVal = document.getElementById("dob")?.value || "";
-      if (dobVal.replace(/\D/g,"").length !== 8) {
+      // Validatie DOB digits
+      const dobEl = document.getElementById("dob");
+      const dobDigits = dobEl ? dobEl.value.replace(/\D/g,"") : "";
+      
+      if (dobDigits.length !== 8) {
          alert("Please enter a valid Date of Birth (DD / MM / YYYY)");
          return;
       }
-      sessionStorage.setItem("dob_full", dobVal);
+      sessionStorage.setItem("dob_full", dobDigits);
 
       sessionStorage.setItem("shortFormCompleted", "true");
       document.dispatchEvent(new Event("shortFormSubmitted"));
