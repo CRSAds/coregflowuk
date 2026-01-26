@@ -51,8 +51,8 @@ export default async function handler(req, res) {
     // =============================================================
     const table =
       event === "click"
-        ? "sovendus_clicks"
-        : "sovendus_impressions";
+        ? "sovendus_clicks_uk"
+        : "sovendus_impressions_uk";
 
     // =============================================================
     // Payload
