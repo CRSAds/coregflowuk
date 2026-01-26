@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ cosponsors.js — UK Version (Full Logic)
+// ✅ cosponsors.js — UK Version (Corrected API URL)
 // =============================================================
 
 (function () {
@@ -169,9 +169,9 @@
       loaded = true;
 
       try {
-        // 🇬🇧 WIJZIGING: Relatief pad naar EIGEN API (/api/cosponsors.js)
+        // 🇬🇧 WIJZIGING: Correcte URL naar cosponsors.js
         const res = await fetch(
-          "https://coregflowuk.vercel.app/api/campaignVisuals.js",
+          "https://coregflowuk.vercel.app/api/cosponsors.js", 
           { cache: "no-store" }
         );
         const json = await res.json();
@@ -179,7 +179,7 @@
         list.innerHTML = "";
 
         if (!Array.isArray(json.data) || !json.data.length) {
-          list.innerHTML = "<p>No active sponsors found.</p>";
+          list.innerHTML = "<p>No active partners found.</p>";
           return;
         }
 
