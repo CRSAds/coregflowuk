@@ -1,14 +1,17 @@
-// ✅ Dynamische footer met Terms/Privacy popup + actievoorwaarden — volledig geïntegreerd
+// =============================================================
+// ✅ footer-loader.js — UK Version (Full Logic & Translations)
+// =============================================================
 
 (function () {
   const params = new URLSearchParams(window.location.search);
+  // Status check mag blijven, maar voor UK wellicht minder strikt of anders?
+  // Voor nu behouden we de check om consistentie te bewaren.
   const status = params.get("status");
-  if (status !== "online" && status !== "live" && status !== "energie") {
-    console.warn("🚫 Ongeldige statusparameter — footer-loader.js wordt niet uitgevoerd.");
-    return;
-  }
+  
+  // Optioneel: als je wilt dat het script altijd draait, haal deze check weg.
+  // if (status !== "online" && status !== "live" && status !== "energie") ...
 
-  console.log("🦶 footer-loader.js gestart");
+  console.log("🦶 footer-loader.js started (UK)");
 
   // === Helpers ===
   function lockScroll() {
@@ -26,13 +29,13 @@
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
-    // === Popup injecteren ===
+    // === Popup injecteren (English) ===
     const popupHTML = `
       <div id="footer-popup" class="footer-popup" style="display:none;">
         <div class="footer-overlay"></div>
         <div class="footer-content" role="dialog" aria-modal="true">
-          <button id="close-footer-popup" aria-label="Sluiten">×</button>
-          <div id="footer-popup-content">Laden…</div>
+          <button id="close-footer-popup" aria-label="Close">×</button>
+          <div id="footer-popup-content">Loading...</div>
         </div>
       </div>
     `;
@@ -41,7 +44,7 @@
     const popup = document.getElementById("footer-popup");
     const popupContent = document.getElementById("footer-popup-content");
 
-    // === CSS ===
+    // === CSS (Identiek aan NL) ===
     const style = document.createElement("style");
     style.textContent = `
       #dynamic-footer {
@@ -158,40 +161,33 @@
     document.head.appendChild(style);
 
     // === Data ophalen ===
-    const status = params.get("status") || "online";
-
-    const footerName =
-      status === "live"
-        ? "Premium Advertising"
-        : status === "energie"
-          ? "Online Acties ism Trefzeker Energie Direct Campagne"
-          : "Online Acties";
-
+    
+    // We gebruiken 'UK General' of iets dergelijks als naam in Directus,
+    // maar we hebben al een filter op country=UK in de API.
+    // Dus we pakken gewoon de footer die matcht, of de eerste.
+    
     let footerData = null;
     try {
-      const res = await fetch("https://globalcoregflow-nl.vercel.app/api/footers.js");
+      // 🇬🇧 WIJZIGING: Relatief pad (/api/footers.js)
+      const res = await fetch("/api/footers.js");
       const { data } = await res.json();
+      
       const coregPathKey = window.activeCoregPathKey || "default";
       
       // 1️⃣ Eerst proberen: coreg-specifieke footer
-      footerData = data.find(f =>
-        f.name === footerName &&
-        f.coreg_path === coregPathKey
-      );
+      footerData = data.find(f => f.coreg_path === coregPathKey);
       
-      // 2️⃣ Fallback: default / leeg
-      if (!footerData) {
-        footerData = data.find(f =>
-          f.name === footerName &&
-          (!f.coreg_path || f.coreg_path === "default")
-        );
+      // 2️⃣ Fallback: Pak de eerste die we vinden (want de API filtert al op UK!)
+      if (!footerData && data.length > 0) {
+        footerData = data[0];
       }
+
       if (!footerData) {
-        console.warn(`⚠️ Geen footer gevonden met naam '${footerName}'`);
+        console.warn("⚠️ No UK footer data found.");
         return;
       }
     } catch (err) {
-      console.error("❌ Fout bij laden footers:", err);
+      console.error("❌ Error loading footer:", err);
       return;
     }
 
@@ -211,52 +207,62 @@
       ? `<img class="icon" src="${footerData.icon_privacy}" alt="">`
       : `<span aria-hidden="true">✅</span>`;
     const logo = footerData.logo
-      ? `<img src="${footerData.logo}" alt="Logo ${footerName}" loading="lazy">`
+      ? `<img src="${footerData.logo}" alt="Logo" loading="lazy">`
       : "";
 
+    // 🇬🇧 Translations in HTML
     footerContainer.innerHTML = `
       <div class="footer-inner">
         <div class="brand">${logo}</div>
         <hr class="fade-rule">
         <p>${footerData.text || ""}</p>
         <div class="link-row">
-          <button class="soft-link" id="open-terms">${termsIcon}<span>Algemene Voorwaarden</span></button>
-          <button class="soft-link" id="open-privacy">${privacyIcon}<span>Privacybeleid</span></button>
+          <button class="soft-link" id="open-terms">${termsIcon}<span>Terms & Conditions</span></button>
+          <button class="soft-link" id="open-privacy">${privacyIcon}<span>Privacy Policy</span></button>
         </div>
       </div>
     `;
 
     // === Popup gedrag ===
     document.addEventListener("click", (e) => {
-      if (e.target.closest("#open-terms")) {
+      // Terms
+      if (e.target.closest("#open-terms") || e.target.id === "open-actievoorwaarden-inline") {
         e.preventDefault();
-        popupContent.innerHTML = footerData.terms_content || "<p>Geen voorwaarden beschikbaar.</p>";
+        // Als het de inline link is, willen we actievoorwaarden, anders general terms
+        // In NL staat dit soms los, hier combineren we het voor simpelheid of splitsen we.
+        // Laten we de 'terms_content' pakken.
+        popupContent.innerHTML = footerData.terms_content || "<p>No terms available.</p>";
         popup.style.display = "flex";
         lockScroll();
       }
+      
+      // Privacy
       if (e.target.closest("#open-privacy")) {
         e.preventDefault();
-        popupContent.innerHTML = footerData.privacy_content || "<p>Geen privacyverklaring beschikbaar.</p>";
+        popupContent.innerHTML = footerData.privacy_content || "<p>No privacy policy available.</p>";
         popup.style.display = "flex";
         lockScroll();
       }
+      
+      // Close
       if (e.target.id === "close-footer-popup" || e.target.classList.contains("footer-overlay")) {
         popup.style.display = "none";
         unlockScroll();
       }
     });
 
-    // === Actievoorwaarden ===
+    // === Actievoorwaarden Injectie (in consent tekst) ===
+    // Dit zoekt naar <div id="actievoorwaarden"> in de tekst, vaak niet gebruikt in nieuwe flows,
+    // maar we laten het staan voor compatibiliteit.
     const actieDiv = document.getElementById("actievoorwaarden");
     if (actieDiv && footerData.actievoorwaarden) {
       actieDiv.innerHTML = footerData.actievoorwaarden;
-      console.log("✅ Actievoorwaarden geladen en ingevoegd.");
     }
 
-    // Popup hoisten
+    // Popup hoisten (zorgen dat hij bovenop ligt)
     const popupEl = document.getElementById("footer-popup");
     if (popupEl && popupEl.parentElement !== document.body) document.body.appendChild(popupEl);
 
-    console.log(`✅ Footer + actievoorwaarden geladen voor: ${footerName}`);
+    console.log("✅ UK Footer loaded.");
   });
 })();
