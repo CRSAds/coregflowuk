@@ -169,7 +169,7 @@
     let footerData = null;
     try {
       // 🇬🇧 WIJZIGING: Relatief pad (/api/footers.js)
-      const res = await fetch("/api/footers.js");
+      const res = await fetch("https://coregflowuk.vercel.app/api/footers.js");
       const { data } = await res.json();
       
       const coregPathKey = window.activeCoregPathKey || "default";
