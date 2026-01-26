@@ -63,7 +63,7 @@ if (!window.formSubmitInitialized) {
         const val = pcInput.value.trim();
         if (!val) return;
         try {
-          const res = await fetch("/api/validateAddressUK.js", {
+          const res = await fetch("https://coregflowuk.vercel.app/api/validateAddressUK.js", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
              body: JSON.stringify({ postcode: val })
@@ -151,7 +151,7 @@ if (!window.formSubmitInitialized) {
     if (window.submittedCampaigns.has(key)) return { skipped: true };
 
     try {
-      const res = await fetch("/api/lead.js", {
+      const res = await fetch("https://coregflowuk.vercel.app/api/lead.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
