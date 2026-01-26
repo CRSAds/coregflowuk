@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     // ---- Supabase config (via env vars)
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const TABLE = process.env.SUPABASE_VISITS_TABLE || "visits";
+    const TABLE = process.env.SUPABASE_VISITS_TABLE || "visits_uk";
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return res.status(500).json({
