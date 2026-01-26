@@ -1,39 +1,53 @@
-// public/formSubmit.js — UK Version (Single DOB Field support)
+// public/formSubmit.js — UK Version (Improved DOB Masking)
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
   window.submittedCampaigns = window.submittedCampaigns || new Set();
 
   // -----------------------------------------------------------
-  // 1. Init & Input Masking (DOB)
+  // 1. Init & Input Logic
   // -----------------------------------------------------------
   document.addEventListener("DOMContentLoaded", () => {
-    // Tracking params
+    // Tracking params opslaan
     const urlParams = new URLSearchParams(window.location.search);
     ["t_id", "aff_id", "sub_id", "sub2", "offer_id"].forEach(key => {
       const val = urlParams.get(key);
       if (val) sessionStorage.setItem(key, val);
     });
 
-    // 🇬🇧 DOB Masking (DD / MM / YYYY)
-    // Zorgt dat het enkele veld werkt zoals in NL
+    // 🇬🇧 DOB Masking: Automatisch invullen van slashes
     const dobInput = document.getElementById("dob");
     if (dobInput) {
-      dobInput.addEventListener("input", (e) => {
-        let v = e.target.value.replace(/\D/g, ""); // Alleen cijfers
-        if (v.length > 8) v = v.slice(0, 8);
+      dobInput.addEventListener("input", function(e) {
+        // Huidige waarde zonder niet-cijfers
+        let v = this.value.replace(/\D/g, "");
         
+        // Backspace check: als de gebruiker wist, niet forceren
+        if (e.inputType === "deleteContentBackward") return;
+
+        // Maximaal 8 cijfers (ddmmyyyy)
+        if (v.length > 8) v = v.slice(0, 8);
+
+        // Opbouwen met slashes
         if (v.length > 4) {
-          e.target.value = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
+          this.value = `${v.slice(0, 2)} / ${v.slice(2, 4)} / ${v.slice(4)}`;
         } else if (v.length > 2) {
-          e.target.value = `${v.slice(0, 2)} / ${v.slice(2)}`;
+          this.value = `${v.slice(0, 2)} / ${v.slice(2)}`;
         } else {
-          e.target.value = v;
+          this.value = v;
+        }
+      });
+
+      // Zorg dat backspace goed werkt bij slashes
+      dobInput.addEventListener("keydown", function(e) {
+        if (e.key === "Backspace" && (this.value.endsWith(" / ") || this.value.endsWith("/ "))) {
+             this.value = this.value.slice(0, -3); // Verwijder de " / " set
+             e.preventDefault();
         }
       });
     }
 
-    // 🇬🇧 Phone Validation (07...)
+    // 🇬🇧 Phone Validation (alleen cijfers, max 11)
     const phoneInput = document.getElementById("phone1");
     if (phoneInput) {
       phoneInput.inputMode = "numeric";
@@ -42,14 +56,13 @@ if (!window.formSubmitInitialized) {
       });
     }
 
-    // 🇬🇧 Postcode Lookup / Format
+    // 🇬🇧 Postcode Lookup Trigger
     const pcInput = document.getElementById("postcode");
     if (pcInput) {
       pcInput.addEventListener("blur", async () => {
         const val = pcInput.value.trim();
         if (!val) return;
         try {
-          // Aanroep naar jouw Vercel API
           const res = await fetch("/api/validateAddressUK.js", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
@@ -60,7 +73,6 @@ if (!window.formSubmitInitialized) {
             pcInput.value = data.formatted;
             pcInput.classList.remove("error");
           } else {
-            // Geen harde alert, alleen styling
             pcInput.classList.add("error");
           }
         } catch(e) {}
@@ -68,7 +80,7 @@ if (!window.formSubmitInitialized) {
     }
   });
 
-  // Helper: IP
+  // Helper: IP ophalen
   async function getIpOnce() {
     let ip = sessionStorage.getItem("user_ip");
     if (ip) return ip;
@@ -82,23 +94,20 @@ if (!window.formSubmitInitialized) {
   }
 
   // -----------------------------------------------------------
-  // 2. Payload Builder
+  // 2. Payload Builder (Data klaarmaken voor verzenden)
   // -----------------------------------------------------------
   async function buildPayload(campaign = {}) {
     const ip = await getIpOnce();
     const t_id = sessionStorage.getItem("t_id") || crypto.randomUUID();
     
-    // DOB Conversie van "DD / MM / YYYY" naar "YYYY-MM-DD"
+    // DOB Converteren: dd / mm / yyyy -> yyyy-mm-dd
     let dob = "";
     const rawDob = sessionStorage.getItem("dob_full") || ""; 
-    // We checken of de opslag in shortform correct is gegaan
+    const cleanDob = rawDob.replace(/\D/g, ""); // "01011990"
     
-    if (rawDob.length >= 8) {
-       // Verwacht formaat in session: DD/MM/YYYY of clean digits
-       const clean = rawDob.replace(/\D/g, "");
-       if (clean.length === 8) {
-         dob = `${clean.slice(4,8)}-${clean.slice(2,4)}-${clean.slice(0,2)}`;
-       }
+    if (cleanDob.length === 8) {
+       // yyyy-mm-dd
+       dob = `${cleanDob.slice(4,8)}-${cleanDob.slice(2,4)}-${cleanDob.slice(0,2)}`;
     }
 
     const payload = {
@@ -108,7 +117,7 @@ if (!window.formSubmitInitialized) {
       firstname:  sessionStorage.getItem("firstname") || "",
       lastname:   sessionStorage.getItem("lastname")  || "",
       email:      sessionStorage.getItem("email")     || "",
-      dob:        dob,
+      dob:        dob, // ISO formaat
       
       postcode:   sessionStorage.getItem("postcode")  || "",
       address1:   sessionStorage.getItem("address1")  || "",
@@ -136,7 +145,7 @@ if (!window.formSubmitInitialized) {
   }
   window.buildPayload = buildPayload;
 
-  // Fetcher
+  // API Call
   async function fetchLead(payload) {
     const key = `${payload.cid}_${payload.sid}`;
     if (window.submittedCampaigns.has(key)) return { skipped: true };
@@ -159,20 +168,20 @@ if (!window.formSubmitInitialized) {
   
   // SHORT FORM
   document.addEventListener("click", (e) => {
-    // Check flow-next button inside lead-form
+    // Check op knop binnen formulier
     if (e.target.matches(".flow-next") && e.target.closest("#lead-form")) {
       const form = document.getElementById("lead-form");
       
-      // Browser validatie (required check)
+      // Browser validatie
       if (!form.checkValidity()) {
         form.reportValidity();
         e.preventDefault();
         return;
       }
 
-      e.preventDefault(); // Stop default submit, we doen manual storage
+      e.preventDefault(); 
 
-      // Opslaan
+      // Data opslaan
       const genderEl = form.querySelector("input[name='gender']:checked");
       if (genderEl) sessionStorage.setItem("gender", genderEl.value);
 
@@ -181,11 +190,14 @@ if (!window.formSubmitInitialized) {
          if (el) sessionStorage.setItem(id, el.value.trim());
       });
 
-      // DOB opslaan (ruwe waarde van input)
+      // DOB opslaan
       const dobVal = document.getElementById("dob")?.value || "";
+      if (dobVal.replace(/\D/g,"").length !== 8) {
+         alert("Please enter a valid Date of Birth (DD / MM / YYYY)");
+         return;
+      }
       sessionStorage.setItem("dob_full", dobVal);
 
-      // Event voor Flow
       sessionStorage.setItem("shortFormCompleted", "true");
       document.dispatchEvent(new Event("shortFormSubmitted"));
     }
@@ -208,7 +220,7 @@ if (!window.formSubmitInitialized) {
     const ad2 = document.getElementById("address2");
     if (ad2) sessionStorage.setItem("address2", ad2.value.trim());
 
-    // Submit pending
+    // Verzenden
     const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
     if (typeof getIpOnce === "function") getIpOnce();
 
