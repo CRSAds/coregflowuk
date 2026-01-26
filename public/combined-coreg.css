@@ -1109,3 +1109,11 @@ input.error {
 .modern-form-v2 .gender-segment label:hover span {
   border-color: #999 !important;
 }
+
+/* =====================================================
+   DOB PLACEHOLDER FIX
+   Zorgt dat DD / MM / YYYY grijs is, net als placeholders
+   ===================================================== */
+#dob.is-placeholder {
+  color: var(--placeholder-color) !important; /* Of rgba(0,0,0,0.45) als fallback */
+}
