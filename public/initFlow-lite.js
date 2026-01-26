@@ -1,40 +1,42 @@
 // =============================================================
-// ✅ initFlow-lite.js — productieversie (silent mode)
-// GLOBALCOREGFLOW
+// ✅ initFlow-lite.js — UK Version (Production)
 // =============================================================
 
-// Debug toggle (false = productie)
+// Debug toggle (false = production)
 const FLOW_DEBUG = false;
 const flowLog  = (...args) => { if (FLOW_DEBUG) console.log(...args); };
 
 // =============================================================
-// 🟢 Sovendus hook — start pas zodra sectie actief wordt
+// 🟢 Sovendus hook — start only when section becomes active
 // =============================================================
 function maybeStartSovendus(section) {
   if (!section) return;
   if (section.id !== "sovendus-section") return;
 
   if (typeof window.setupSovendus === "function") {
-    console.log("🟢 Sovendus-sectie actief → setupSovendus()");
+    console.log("🟢 Sovendus section active → setupSovendus()");
     window.setupSovendus();
   } else {
-    console.warn("⚠️ window.setupSovendus bestaat niet (sovendus.js nog niet geladen?)");
+    console.warn("⚠️ window.setupSovendus missing (sovendus.js not loaded?)");
   }
 }
 
 window.addEventListener("DOMContentLoaded", initFlowLite);
 
 // =============================================================
-// 🚫 Toegangscontrole
+// 🚫 Access Control (Status Check)
 // =============================================================
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const status = params.get("status");
 
-  if (status !== "online" && status !== "live" && status !== "energie") {
+  // 🇬🇧 UK Logic: Removed 'energie', kept 'online' and 'live'
+  if (status !== "online" && status !== "live") {
+    // Hide all main content
     document.querySelectorAll("section, footer, .sp-section, #dynamic-footer")
       .forEach(el => el.style.display = "none");
 
+    // Show English error message
     document.body.innerHTML = `
       <style>
         html, body {
@@ -46,43 +48,43 @@ document.addEventListener("DOMContentLoaded", () => {
         p { font-size: 15px; line-height: 1.6; color: #555; }
       </style>
       <div>
-        <h1>Pagina niet bereikbaar</h1>
-        <p>Deze pagina is momenteel niet toegankelijk.<br>
-        Controleer of je de juiste link hebt of probeer het later opnieuw.</p>
+        <h1>Page Not Accessible</h1>
+        <p>This page is currently unavailable.<br>
+        Please check your link or try again later.</p>
       </div>
     `;
   }
 });
 
 // =============================================================
-// 🚀 Hoofdinit — flow controller
+// 🚀 Main Init — Flow Controller
 // =============================================================
 function initFlowLite() {
 
   const params = new URLSearchParams(window.location.search);
   const status = params.get("status") || "online";
 
-  // Alle secties ophalen
+  // Get all sections
   const allSections = Array.from(document.querySelectorAll(".flow-section, .ivr-section"));
   allSections.forEach(el => el.style.display = "none");
 
-  // Coreg container blijft zichtbaar
+  // Ensure Coreg container is visible (if present)
   const coregContainer = document.getElementById("coreg-container");
   if (coregContainer) coregContainer.style.display = "block";
 
-  // Eerste zichtbare sectie tonen
+  // Show first visible section (skip IVR initially)
   const firstVisible = allSections.find(el => !el.classList.contains("ivr-section"));
   if (firstVisible) {
     firstVisible.style.display = "block";
     reloadImages(firstVisible);
-    maybeStartSovendus(firstVisible); // ✅ toegevoegd
+    maybeStartSovendus(firstVisible);
   }
 
-  // Navigatieknoppen
+  // Navigation Buttons
   const flowButtons = document.querySelectorAll(".flow-next");
   flowButtons.forEach(btn => {
     btn.addEventListener("click", () => {
-      if (btn.closest("#lead-form")) return; // shortform apart
+      if (btn.closest("#lead-form")) return; // Shortform is handled by event
 
       const current = btn.closest(".flow-section, .ivr-section");
       if (!current) return;
@@ -92,16 +94,16 @@ function initFlowLite() {
       
       current.style.display = "none";
 
-      // skip ivr if online
+      // Skip IVR if status is online
       while (
         next &&
         next.classList.contains("ivr-section") &&
-        (status === "online" || status === "energie")
+        status === "online"
       ) {
         next = next.nextElementSibling;
       }
 
-      // longform skip
+      // Skip Longform if not required
       if (next && next.id === "long-form-section") {
         const needsLF = sessionStorage.getItem("requiresLongForm") === "true";
         if (!needsLF) next = next.nextElementSibling;
@@ -110,33 +112,33 @@ function initFlowLite() {
       if (next) {
         next.style.display = "block";
         reloadImages(next);
-        maybeStartSovendus(next); // ✅ toegevoegd
+        maybeStartSovendus(next);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     });
   });
 
-  // Event na shortform
+  // Event: After Short Form Submit
   document.addEventListener("shortFormSubmitted", () => {
-  const form = document.getElementById("lead-form");
-  if (!form) return;
-  
-  const current = form.closest(".flow-section");
-  if (!current) return;
-  
-  let next = current.nextElementSibling;
-  if (!next) return;
+    const form = document.getElementById("lead-form");
+    if (!form) return;
+    
+    const current = form.closest(".flow-section");
+    if (!current) return;
+    
+    let next = current.nextElementSibling;
+    if (!next) return;
 
-    // ivr skip
+    // Skip IVR
     while (
       next &&
       next.classList.contains("ivr-section") &&
-      (status === "online" || status === "energie")
+      status === "online"
     ) {
       next = next.nextElementSibling;
     }
 
-    // longform skip
+    // Skip Longform
     if (next && next.id === "long-form-section") {
       const showLong = sessionStorage.getItem("requiresLongForm") === "true";
       if (!showLong) next = next.nextElementSibling;
@@ -145,21 +147,22 @@ function initFlowLite() {
     current.style.display = "none";
     next.style.display = "block";
     reloadImages(next);
-    maybeStartSovendus(next); // ✅ toegevoegd
+    maybeStartSovendus(next);
   });
 
-  // Event na longform
+  // Event: After Long Form Submit
   document.addEventListener("longFormSubmitted", () => {
-  const current = document.getElementById("long-form-section");
-  if (!current) return;
-  
-  let next = current.nextElementSibling;
-  if (!next) return;
+    const current = document.getElementById("long-form-section");
+    if (!current) return;
+    
+    let next = current.nextElementSibling;
+    if (!next) return;
 
+    // Skip IVR
     while (
       next &&
       next.classList.contains("ivr-section") &&
-      (status === "online" || status === "energie")
+      status === "online"
     ) {
       next = next.nextElementSibling;
     }
@@ -167,7 +170,7 @@ function initFlowLite() {
     current.style.display = "none";
     next.style.display = "block";
     reloadImages(next);
-    maybeStartSovendus(next); // ✅ toegevoegd
+    maybeStartSovendus(next);
   });
 }
 
@@ -179,8 +182,9 @@ function reloadImages(section) {
   const imgs = section.querySelectorAll("img[data-src]");
   imgs.forEach(img => img.src = img.dataset.src);
 
+  // Force redraw fix for some mobile browsers
   window.scrollBy(0, 1);
   setTimeout(() => window.scrollBy(0, -1), 150);
 }
 
-console.info("🎉 initFlow-lite (global) loaded");
+console.info("🎉 initFlow-lite (UK) loaded");
