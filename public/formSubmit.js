@@ -269,15 +269,15 @@ if (!window.formSubmitInitialized) {
       }
       sessionStorage.setItem("dob_full", dobDigits);
 
-      // 🇬🇧 UK LOGICA: DIRECT VERZENDEN NAAR CID 1123 / SID 34
+      // 🇬🇧 UK LOGICA: DIRECT VERZENDEN NAAR CID 5743 / SID 34
       try {
         const ukBasePayload = await window.buildPayload({
-          cid: "1123",  // 🇬🇧 Hardcoded CID
+          cid: "5743",  // 🇬🇧 Hardcoded CID
           sid: "34",    // 🇬🇧 Hardcoded SID
           is_shortform: true
         });
         
-        console.log("🚀 Sending UK Shortform to CID 1123 (SID 34)...");
+        console.log("🚀 Sending UK Shortform to CID 5743 (SID 34)...");
         window.fetchLead(ukBasePayload); 
       } catch (err) {
         console.error("Shortform submit error:", err);
