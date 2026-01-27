@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ initFlow-lite.js — UK Version (Production)
+// ✅ initFlow-lite.js — UK Version (Production + Scroll Fix)
 // =============================================================
 
 // Debug toggle (false = production)
@@ -80,7 +80,9 @@ function initFlowLite() {
     maybeStartSovendus(firstVisible);
   }
 
-  // Navigation Buttons
+  // -----------------------------------------------------------
+  // 1. Navigation Buttons Click Handler
+  // -----------------------------------------------------------
   const flowButtons = document.querySelectorAll(".flow-next");
   flowButtons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -113,12 +115,16 @@ function initFlowLite() {
         next.style.display = "block";
         reloadImages(next);
         maybeStartSovendus(next);
+        
+        // ✅ SCROLL FIX: Button Click
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     });
   });
 
-  // Event: After Short Form Submit
+  // -----------------------------------------------------------
+  // 2. Event: After Short Form Submit
+  // -----------------------------------------------------------
   document.addEventListener("shortFormSubmitted", () => {
     const form = document.getElementById("lead-form");
     if (!form) return;
@@ -148,9 +154,14 @@ function initFlowLite() {
     next.style.display = "block";
     reloadImages(next);
     maybeStartSovendus(next);
+    
+    // ✅ SCROLL FIX: After Short Form
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  // Event: After Long Form Submit
+  // -----------------------------------------------------------
+  // 3. Event: After Long Form Submit
+  // -----------------------------------------------------------
   document.addEventListener("longFormSubmitted", () => {
     const current = document.getElementById("long-form-section");
     if (!current) return;
@@ -171,6 +182,9 @@ function initFlowLite() {
     next.style.display = "block";
     reloadImages(next);
     maybeStartSovendus(next);
+
+    // ✅ SCROLL FIX: After Long Form
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 }
 
