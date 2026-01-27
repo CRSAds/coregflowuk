@@ -138,16 +138,15 @@
   text-align: center;
 }
 
-/* === POSITIEVE KNOPPEN (JA / YES) === */
-.coreg-section .btn-answer[data-answer*="ja"],
-.coreg-section .btn-answer[data-answer*="yes"],
+/* === POSITIEVE KNOPPEN (JA / YES / ALLE OPTIES) === */
+/* Fix: Maak elke antwoord-knop groen, ongeacht de waarde (yes/optin/confirm) */
+.coreg-section .btn-answer,
 .flow-next[data-answer="yes"] {
   background-color: var(--campaign-primary) !important;
   color: #fff !important;
 }
 
-.coreg-section .btn-answer[data-answer*="ja"]:hover,
-.coreg-section .btn-answer[data-answer*="yes"]:hover,
+.coreg-section .btn-answer:hover,
 .flow-next[data-answer="yes"]:hover {
   filter: brightness(1.1);
   transform: translateY(-1px);
