@@ -1,13 +1,39 @@
 // =============================================================
-// ✅ initFlow-lite.js — UK Version (Production + Scroll Fix)
+// ✅ initFlow-lite.js — UK Version (Aggressive Scroll Fix)
 // =============================================================
 
-// Debug toggle (false = production)
+// Debug toggle
 const FLOW_DEBUG = false;
 const flowLog  = (...args) => { if (FLOW_DEBUG) console.log(...args); };
 
 // =============================================================
-// 🟢 Sovendus hook — start only when section becomes active
+// 🛠️ HELPER: FORCE SCROLL TOP
+// Probeert alle mogelijke containers naar boven te scrollen
+// =============================================================
+function forceScrollTop() {
+  // 1. Directe window scroll (zonder smooth om conflicten te voorkomen)
+  window.scrollTo(0, 0);
+
+  // 2. Body en HTML (voor mobiele browsers / Safari)
+  document.body.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
+
+  // 3. Swipe Pages Specifieke Wrappers
+  // Soms zit de scrollbar op een wrapper div
+  const wrappers = document.querySelectorAll('.swipe-page-wrapper, .section-container, .coreg-wrapper-fixed');
+  wrappers.forEach(el => {
+    el.scrollTop = 0;
+  });
+
+  // 4. Fallback met timeout (voor als de browser traag rendert)
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+  }, 50);
+}
+
+// =============================================================
+// 🟢 Sovendus hook
 // =============================================================
 function maybeStartSovendus(section) {
   if (!section) return;
@@ -17,26 +43,23 @@ function maybeStartSovendus(section) {
     console.log("🟢 Sovendus section active → setupSovendus()");
     window.setupSovendus();
   } else {
-    console.warn("⚠️ window.setupSovendus missing (sovendus.js not loaded?)");
+    console.warn("⚠️ window.setupSovendus missing");
   }
 }
 
 window.addEventListener("DOMContentLoaded", initFlowLite);
 
 // =============================================================
-// 🚫 Access Control (Status Check)
+// 🚫 Access Control
 // =============================================================
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const status = params.get("status");
 
-  // 🇬🇧 UK Logic: Removed 'energie', kept 'online' and 'live'
   if (status !== "online" && status !== "live") {
-    // Hide all main content
     document.querySelectorAll("section, footer, .sp-section, #dynamic-footer")
       .forEach(el => el.style.display = "none");
 
-    // Show English error message
     document.body.innerHTML = `
       <style>
         html, body {
@@ -68,11 +91,11 @@ function initFlowLite() {
   const allSections = Array.from(document.querySelectorAll(".flow-section, .ivr-section"));
   allSections.forEach(el => el.style.display = "none");
 
-  // Ensure Coreg container is visible (if present)
+  // Ensure Coreg container is visible
   const coregContainer = document.getElementById("coreg-container");
   if (coregContainer) coregContainer.style.display = "block";
 
-  // Show first visible section (skip IVR initially)
+  // Show first visible section
   const firstVisible = allSections.find(el => !el.classList.contains("ivr-section"));
   if (firstVisible) {
     firstVisible.style.display = "block";
@@ -86,7 +109,7 @@ function initFlowLite() {
   const flowButtons = document.querySelectorAll(".flow-next");
   flowButtons.forEach(btn => {
     btn.addEventListener("click", () => {
-      if (btn.closest("#lead-form")) return; // Shortform is handled by event
+      if (btn.closest("#lead-form")) return; // Shortform handled by event
 
       const current = btn.closest(".flow-section, .ivr-section");
       if (!current) return;
@@ -96,7 +119,7 @@ function initFlowLite() {
       
       current.style.display = "none";
 
-      // Skip IVR if status is online
+      // Skip IVR
       while (
         next &&
         next.classList.contains("ivr-section") &&
@@ -105,7 +128,7 @@ function initFlowLite() {
         next = next.nextElementSibling;
       }
 
-      // Skip Longform if not required
+      // Skip Longform
       if (next && next.id === "long-form-section") {
         const needsLF = sessionStorage.getItem("requiresLongForm") === "true";
         if (!needsLF) next = next.nextElementSibling;
@@ -116,8 +139,8 @@ function initFlowLite() {
         reloadImages(next);
         maybeStartSovendus(next);
         
-        // ✅ SCROLL FIX: Button Click
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // ✅ AGGRESSIVE SCROLL
+        forceScrollTop();
       }
     });
   });
@@ -155,8 +178,8 @@ function initFlowLite() {
     reloadImages(next);
     maybeStartSovendus(next);
     
-    // ✅ SCROLL FIX: After Short Form
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // ✅ AGGRESSIVE SCROLL
+    forceScrollTop();
   });
 
   // -----------------------------------------------------------
@@ -183,8 +206,8 @@ function initFlowLite() {
     reloadImages(next);
     maybeStartSovendus(next);
 
-    // ✅ SCROLL FIX: After Long Form
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // ✅ AGGRESSIVE SCROLL
+    forceScrollTop();
   });
 }
 
