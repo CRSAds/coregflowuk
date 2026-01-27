@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ sovendus.js — UK Version (Fix: Loader removal on Button/Link)
+// ✅ sovendus.js — UK Version (Instant Loader Removal)
 // =============================================================
 
 (function() {
@@ -22,15 +22,19 @@
       return;
     }
 
-    // Clear container
+    // Clear container en maak zichtbaar
     container.innerHTML = '';
+    container.style.display = 'block';
+    container.style.minHeight = '60px'; // Voorkom verspringen
 
     // 3. "Loading" bericht toevoegen
+    // We geven het een specifieke class mee voor makkelijke detectie
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'sovendus-loading';
+    loadingDiv.className = 'sovendus-loader-msg';
     loadingDiv.style.textAlign = 'center';
     loadingDiv.style.padding = '16px';
-    loadingDiv.innerHTML = `<p style="font-size: 16px; font-family: sans-serif; color: #555;">Please wait… your reward is loading!</p>`;
+    loadingDiv.innerHTML = `<p style="font-size: 16px; font-family: sans-serif; color: #555; margin: 0;">Please wait… your reward is loading!</p>`;
     container.appendChild(loadingDiv);
 
     // 4. Data ophalen
@@ -69,27 +73,42 @@
     script.src = 'https://api.sovendus.com/sovabo/common/js/flexibleIframe.js';
     script.async = true;
 
+    // Functie om loader te verwijderen
+    const removeLoader = () => {
+      const loader = document.getElementById('sovendus-loading');
+      if (loader) {
+        loader.style.display = 'none'; // Eerst verbergen (sneller)
+        loader.remove(); // Dan verwijderen
+        console.log("🚀 Loader removed immediately");
+      }
+    };
+
     script.onload = () => {
       console.log('✅ Sovendus script geladen');
 
-      // 🛡️ Safety: Haal tekst sowieso weg na 3.5 sec (voorkomt blijvende tekst)
-      setTimeout(() => {
-        const el = document.getElementById('sovendus-loading');
-        if (el) el.remove();
-      }, 3500);
+      // 🛡️ Safety: Haal tekst sowieso weg na 4 sec (fallback)
+      setTimeout(removeLoader, 4000);
 
-      const observer = new MutationObserver((_, obs) => {
-        // 🔍 FIX: Check niet alleen op iframe, maar ook op links (buttons) of divs
-        // De UK versie laadt vaak een knop (<a>) i.p.v. iframe.
-        const content = container.querySelector("iframe, a[href*='sovendus'], div:not(#sovendus-loading)");
+      // ⚡️ AGRESSIEVE OBSERVER
+      // Kijkt of er IETS anders dan de loader in de container staat
+      const observer = new MutationObserver((mutations, obs) => {
+        // Check alle directe kinderen van de container
+        const children = Array.from(container.children);
         
-        if (content) {
-          console.log("🎯 Sovendus content (iframe/button) gedetecteerd");
+        const hasRealContent = children.some(child => {
+          // Negeer het loader element zelf
+          if (child.id === 'sovendus-loading') return false;
+          // Negeer onzichtbare script tags (tracking)
+          if (child.tagName === 'SCRIPT') return false;
           
-          const loadingEl = document.getElementById('sovendus-loading');
-          if (loadingEl) loadingEl.remove();
+          // Als het een DIV, IFRAME of A is -> BINGO
+          return true;
+        });
 
-          obs.disconnect();
+        if (hasRealContent) {
+          console.log("🎯 Sovendus content detected -> killing loader");
+          removeLoader();
+          obs.disconnect(); // Stop met kijken
         }
       });
 
@@ -98,8 +117,7 @@
 
     script.onerror = () => {
       console.error('❌ Sovendus script failed to load');
-      const loadingEl = document.getElementById('sovendus-loading');
-      if (loadingEl) loadingEl.style.display = 'none';
+      removeLoader(); // Bij error tekst weghalen
     };
 
     document.body.appendChild(script);
