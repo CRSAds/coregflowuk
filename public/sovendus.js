@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ sovendus.js — UK Version (ID 7675 + Loading Message)
+// ✅ sovendus.js — UK Version (Fix: Loader removal on Button/Link)
 // =============================================================
 
 (function() {
@@ -22,10 +22,10 @@
       return;
     }
 
-    // Clear container (voor zekerheid)
+    // Clear container
     container.innerHTML = '';
 
-    // 3. "Loading" bericht toevoegen (Goede UX!)
+    // 3. "Loading" bericht toevoegen
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'sovendus-loading';
     loadingDiv.style.textAlign = 'center';
@@ -35,15 +35,14 @@
 
     // 4. Data ophalen
     const t_id = sessionStorage.getItem('t_id') || crypto.randomUUID();
-    const gender = sessionStorage.getItem('gender') || ''; // Bevat "Mr" of "Mrs"
+    const gender = sessionStorage.getItem('gender') || ''; 
     const firstname = sessionStorage.getItem('firstname') || '';
     const lastname = sessionStorage.getItem('lastname') || '';
     const email = sessionStorage.getItem('email') || '';
     
-    // Tijdstempel (Formaat uit jouw snippet: YYYYMMDDHHMMSS)
     const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
 
-    // 5. Global Consumer Object (Specifiek voor jouw UK setup)
+    // 5. Global Consumer Object
     window.sovConsumer = {
       consumerSalutation: gender,
       consumerFirstName: firstname,
@@ -54,13 +53,13 @@
     // 6. Global Iframe Config
     window.sovIframes = window.sovIframes || [];
     window.sovIframes.push({
-      trafficSourceNumber: '7675', // 🇬🇧 JOUW UK ID
-      trafficMediumNumber: '1',    // Standaard
+      trafficSourceNumber: '7675', // 🇬🇧 UK ID
+      trafficMediumNumber: '1',    
       sessionId: t_id,
       timestamp: timestamp,
-      orderId: '',                 // Leadgen heeft geen order ID
-      orderValue: '',              // Leadgen is gratis
-      orderCurrency: 'GBP',        // Valuta UK
+      orderId: '',                 
+      orderValue: '',              
+      orderCurrency: 'GBP',        
       usedCouponCode: '',
       iframeContainerId: containerId
     });
@@ -71,15 +70,34 @@
     script.async = true;
 
     script.onload = () => {
-      console.log('✅ Sovendus UK loaded');
-      // Verwijder het laadbericht zodra het script er is
-      const loadingEl = document.getElementById('sovendus-loading');
-      if (loadingEl) loadingEl.remove();
+      console.log('✅ Sovendus script geladen');
+
+      // 🛡️ Safety: Haal tekst sowieso weg na 3.5 sec (voorkomt blijvende tekst)
+      setTimeout(() => {
+        const el = document.getElementById('sovendus-loading');
+        if (el) el.remove();
+      }, 3500);
+
+      const observer = new MutationObserver((_, obs) => {
+        // 🔍 FIX: Check niet alleen op iframe, maar ook op links (buttons) of divs
+        // De UK versie laadt vaak een knop (<a>) i.p.v. iframe.
+        const content = container.querySelector("iframe, a[href*='sovendus'], div:not(#sovendus-loading)");
+        
+        if (content) {
+          console.log("🎯 Sovendus content (iframe/button) gedetecteerd");
+          
+          const loadingEl = document.getElementById('sovendus-loading');
+          if (loadingEl) loadingEl.remove();
+
+          obs.disconnect();
+        }
+      });
+
+      observer.observe(container, { childList: true, subtree: true });
     };
 
     script.onerror = () => {
       console.error('❌ Sovendus script failed to load');
-      // Bij error laadbericht ook weghalen of aanpassen
       const loadingEl = document.getElementById('sovendus-loading');
       if (loadingEl) loadingEl.style.display = 'none';
     };
