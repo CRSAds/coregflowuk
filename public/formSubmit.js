@@ -1,12 +1,12 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Met Slide-up Fix & Vertaling)
+// ✅ formSubmit.js — UK Version (Clean Slide-up)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
   window.submittedCampaigns = window.submittedCampaigns || new Set();
 
-  // --- HTML Template (UK English - Motivating) ---
+  // --- HTML Template (UK English) ---
   const SLIDEUP_TEMPLATE = `
     <div class="sponsor-slideup" id="sponsor-slideup">
       <h3 class="slideup-title">Almost done!</h3>
@@ -32,43 +32,20 @@ if (!window.formSubmitInitialized) {
   // 1. Init & Input Logic
   // -----------------------------------------------------------
   document.addEventListener("DOMContentLoaded", () => {
-    // Tracking params opslaan
     const urlParams = new URLSearchParams(window.location.search);
     ["t_id", "aff_id", "sub_id", "sub2", "offer_id"].forEach(key => {
       const val = urlParams.get(key);
       if (val) sessionStorage.setItem(key, val);
     });
 
-    // Inject Slide-up (indien ingeschakeld)
+    // Inject Slide-up
     const form = document.getElementById("lead-form");
     if (form && form.dataset.sponsorSlideup === "true") {
       form.insertAdjacentHTML('beforeend', SLIDEUP_TEMPLATE);
-
-      // 🔧 FIX: Koppel de partner link in de slide-up aan de echte popup trigger
-      // We wachten heel even om zeker te zijn dat de DOM klaar is
-      setTimeout(() => {
-        const slideupLink = form.querySelector("#sponsor-slideup .open-sponsor-popup");
-        // Zoek de originele trigger die wél werkt (vaak in de footer of hidden op de pagina)
-        // We proberen een paar selectors die vaak gebruikt worden in Swipepages/je template
-        const realTrigger = document.getElementById("open-sponsor-popup") || 
-                            document.querySelector(".open-sponsor-popup:not(.slideup-partner-link)");
-
-        if (slideupLink && realTrigger) {
-          slideupLink.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("🇬🇧 Slide-up partner link clicked -> triggering real popup");
-            realTrigger.click(); // Simuleer klik op de werkende knop
-          });
-        } else {
-           // Fallback: Als er geen andere knop is, probeer cosponsors.js direct aan te roepen als die global is exposed
-           // Of log een warning dat we de popup niet kunnen openen
-           console.warn("⚠️ Could not find original sponsor popup trigger to bind to.");
-        }
-      }, 500);
+      // We hoeven hier NIETS te binden. cosponsors.js pakt de class '.open-sponsor-popup' automatisch op.
     }
 
-    // 🇬🇧 DOB Logic (Smart Masking)
+    // 🇬🇧 DOB Logic
     const dobInput = document.getElementById("dob");
     if (dobInput) {
       const TEMPLATE = "DD / MM / YYYY";
@@ -167,7 +144,6 @@ if (!window.formSubmitInitialized) {
     const ip = await getIpOnce();
     const t_id = sessionStorage.getItem("t_id") || crypto.randomUUID();
     
-    // DOB Conversie
     let dob = "";
     let rawDigits = sessionStorage.getItem("dob_full");
     if (!rawDigits) {
@@ -226,13 +202,19 @@ if (!window.formSubmitInitialized) {
   window.fetchLead = fetchLead;
 
   // -----------------------------------------------------------
-  // 3. Submit Helpers (UK Specific)
+  // 3. Submit Helpers (UK)
   // -----------------------------------------------------------
   async function sendUkSponsorLeads() {
     try {
-      // 🇬🇧 Placeholder: If you have a UK sponsors endpoint, call it here.
-      // Example: await fetch("https://coregflowuk.vercel.app/api/cosponsors.js");
-      console.log("🇬🇧 Sponsors accepted (UK Logic)");
+      // Roep hier cosponsors.js API aan indien nodig
+      const res = await fetch("https://coregflowuk.vercel.app/api/cosponsors.js");
+      const json = await res.json();
+      if(Array.isArray(json.data)) {
+        Promise.allSettled(json.data.map(async s => {
+           const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
+           return window.fetchLead(p);
+        }));
+      }
     } catch {}
   }
 
@@ -263,7 +245,6 @@ if (!window.formSubmitInitialized) {
       e.preventDefault(); e.stopPropagation();
       if (submitting) return;
 
-      // 1. Validatie
       if (!form.checkValidity()) { form.reportValidity(); return; }
       
       const dobEl = document.getElementById("dob");
@@ -272,7 +253,6 @@ if (!window.formSubmitInitialized) {
          return;
       }
 
-      // 2. Opslaan
       const genderEl = form.querySelector("input[name='gender']:checked");
       if (genderEl) sessionStorage.setItem("gender", genderEl.value);
       ["firstname", "lastname", "email"].forEach(id => {
@@ -281,18 +261,16 @@ if (!window.formSubmitInitialized) {
       });
       if (typeof getIpOnce === "function") getIpOnce();
 
-      // 3. Slide-up check
       const useSlideUp = form.dataset.sponsorSlideup === "true";
 
       if (useSlideUp) {
         const slideup = document.getElementById("sponsor-slideup");
         if (slideup) {
           slideup.classList.add("is-visible");
-          
           if (!slideup.dataset.bound) {
              slideup.dataset.bound = "true";
              
-             // YES - Confirm
+             // YES
              const confirmBtn = document.getElementById("slideup-confirm");
              confirmBtn.addEventListener("click", async () => {
                confirmBtn.classList.add("is-loading");
@@ -303,11 +281,9 @@ if (!window.formSubmitInitialized) {
                sessionStorage.setItem("sponsorsAccepted", "true");
                await sendUkSponsorLeads();
                await finalizeUkShortForm();
-               
-               // Keep visible until page transition
              });
 
-             // NO - Deny
+             // NO
              document.getElementById("slideup-deny").addEventListener("click", async () => {
                slideup.classList.remove("is-visible");
                btn.innerHTML = "Please wait...";
@@ -318,11 +294,9 @@ if (!window.formSubmitInitialized) {
              });
           }
         } else {
-          // Fallback if HTML missing
           await finalizeUkShortForm();
         }
       } else {
-        // Old flow
         submitting = true;
         btn.disabled = true;
         await finalizeUkShortForm();
@@ -334,24 +308,20 @@ if (!window.formSubmitInitialized) {
     btn.addEventListener("click", handleShortForm, true);
   });
 
-  // LONG FORM HANDLER (Onveranderd)
+  // Longform Handler (Onveranderd)
   document.addEventListener("click", async e => {
     if (!e.target.matches("#submit-long-form")) return;
     e.preventDefault();
-
     const reqFields = ["postcode", "address1", "city", "phone1"];
     const invalid = reqFields.filter(id => !document.getElementById(id)?.value.trim());
     if (invalid.length) return alert("Please fill in all required fields.");
     const phoneVal = document.getElementById("phone1").value.replace(/\D/g,"");
     if (!/^07\d{9}$/.test(phoneVal)) return alert("Please enter a valid UK mobile number.");
-
     reqFields.forEach(id => sessionStorage.setItem(id, document.getElementById(id).value.trim()));
     const ad2 = document.getElementById("address2");
     if (ad2) sessionStorage.setItem("address2", ad2.value.trim());
-
     const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
     if (typeof getIpOnce === "function") getIpOnce();
-
     (async () => {
       await Promise.allSettled(pending.map(async camp => {
          const ans = sessionStorage.getItem(`f_2014_coreg_answer_${camp.cid}`);
@@ -367,6 +337,6 @@ if (!window.formSubmitInitialized) {
     })();
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
-  
-  console.info("🎉 formSubmit loaded (UK v3 Slide-up Fix)");
+
+  console.info("🎉 formSubmit loaded (UK Clean Fix)");
 }
