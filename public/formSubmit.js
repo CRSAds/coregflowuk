@@ -1,18 +1,18 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Smart DOB + Slide-up + Gray Placeholder)
+// ✅ formSubmit.js — UK Version (Met Slide-up Fix & Vertaling)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
   window.submittedCampaigns = window.submittedCampaigns || new Set();
 
-  // --- HTML Template (UK English) ---
+  // --- HTML Template (UK English - Motivating) ---
   const SLIDEUP_TEMPLATE = `
     <div class="sponsor-slideup" id="sponsor-slideup">
-      <h3 class="slideup-title">Almost there!</h3>
+      <h3 class="slideup-title">Almost done!</h3>
       <p class="slideup-text">
-        Do you agree that our <button type="button" class="slideup-partner-link open-sponsor-popup">partners</button> 
-        may contact you with offers?
+        Are you happy for our <button type="button" class="slideup-partner-link open-sponsor-popup">partners</button> 
+        to contact you with their latest offers?
       </p>
       <div class="slideup-actions">
         <button type="button" id="slideup-confirm" class="cta-primary">
@@ -43,6 +43,29 @@ if (!window.formSubmitInitialized) {
     const form = document.getElementById("lead-form");
     if (form && form.dataset.sponsorSlideup === "true") {
       form.insertAdjacentHTML('beforeend', SLIDEUP_TEMPLATE);
+
+      // 🔧 FIX: Koppel de partner link in de slide-up aan de echte popup trigger
+      // We wachten heel even om zeker te zijn dat de DOM klaar is
+      setTimeout(() => {
+        const slideupLink = form.querySelector("#sponsor-slideup .open-sponsor-popup");
+        // Zoek de originele trigger die wél werkt (vaak in de footer of hidden op de pagina)
+        // We proberen een paar selectors die vaak gebruikt worden in Swipepages/je template
+        const realTrigger = document.getElementById("open-sponsor-popup") || 
+                            document.querySelector(".open-sponsor-popup:not(.slideup-partner-link)");
+
+        if (slideupLink && realTrigger) {
+          slideupLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("🇬🇧 Slide-up partner link clicked -> triggering real popup");
+            realTrigger.click(); // Simuleer klik op de werkende knop
+          });
+        } else {
+           // Fallback: Als er geen andere knop is, probeer cosponsors.js direct aan te roepen als die global is exposed
+           // Of log een warning dat we de popup niet kunnen openen
+           console.warn("⚠️ Could not find original sponsor popup trigger to bind to.");
+        }
+      }, 500);
     }
 
     // 🇬🇧 DOB Logic (Smart Masking)
@@ -207,10 +230,9 @@ if (!window.formSubmitInitialized) {
   // -----------------------------------------------------------
   async function sendUkSponsorLeads() {
     try {
-      // 🇬🇧 TODO: Hier kun je de endpoint voor UK sponsors aanroepen als die er is
-      // Voor nu is er geen 'cosponsors.js' in de UK repo, dus dit blijft leeg of placeholder.
-      // Als je sponsors hebt, voeg hier fetch logic toe.
-      console.log("🇬🇧 Sponsors accepted (UK Logic placeholder)");
+      // 🇬🇧 Placeholder: If you have a UK sponsors endpoint, call it here.
+      // Example: await fetch("https://coregflowuk.vercel.app/api/cosponsors.js");
+      console.log("🇬🇧 Sponsors accepted (UK Logic)");
     } catch {}
   }
 
@@ -266,10 +288,11 @@ if (!window.formSubmitInitialized) {
         const slideup = document.getElementById("sponsor-slideup");
         if (slideup) {
           slideup.classList.add("is-visible");
+          
           if (!slideup.dataset.bound) {
              slideup.dataset.bound = "true";
              
-             // YES
+             // YES - Confirm
              const confirmBtn = document.getElementById("slideup-confirm");
              confirmBtn.addEventListener("click", async () => {
                confirmBtn.classList.add("is-loading");
@@ -280,22 +303,26 @@ if (!window.formSubmitInitialized) {
                sessionStorage.setItem("sponsorsAccepted", "true");
                await sendUkSponsorLeads();
                await finalizeUkShortForm();
+               
+               // Keep visible until page transition
              });
 
-             // NO
+             // NO - Deny
              document.getElementById("slideup-deny").addEventListener("click", async () => {
                slideup.classList.remove("is-visible");
                btn.innerHTML = "Please wait...";
                submitting = true;
+               
                sessionStorage.setItem("sponsorsAccepted", "false");
                await finalizeUkShortForm();
              });
           }
         } else {
+          // Fallback if HTML missing
           await finalizeUkShortForm();
         }
       } else {
-        // Old flow (No slideup)
+        // Old flow
         submitting = true;
         btn.disabled = true;
         await finalizeUkShortForm();
@@ -341,5 +368,5 @@ if (!window.formSubmitInitialized) {
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
   
-  console.info("🎉 formSubmit loaded (UK v2)");
+  console.info("🎉 formSubmit loaded (UK v3 Slide-up Fix)");
 }
