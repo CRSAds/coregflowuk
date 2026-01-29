@@ -542,3 +542,155 @@
   color: #000000 !important;
   text-decoration: underline;
 }
+
+/* =====================================================
+   GLASSMORPHISM (Formulier Achtergrond)
+   ===================================================== */
+
+/* Dark Theme (Effen donkere laag + rand) */
+.modern-form-v2[data-theme="dark"] {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 24px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Light Theme (Frosted Glass) */
+.modern-form-v2[data-theme="light"],
+.modern-form-v2:not([data-theme]),
+.modern-form-v2:not([data-theme="dark"]) {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  padding: 24px !important;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Mobiele correctie */
+@media (max-width: 480px) {
+  .modern-form-v2[data-theme="light"],
+  .modern-form-v2[data-theme="dark"],
+  .modern-form-v2:not([data-theme]) {
+    padding: 16px !important;
+  }
+}
+
+/* =====================================================
+   SPONSOR SLIDE-UP (Smart Submit) — UK STYLE
+   ===================================================== */
+
+.modern-form-v2 {
+  position: relative;
+  overflow: hidden; 
+}
+
+.sponsor-slideup {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 0 0 10px 10px;
+  
+  padding: 24px 20px;
+  text-align: center;
+  z-index: 100;
+  
+  transform: translateY(110%);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.12);
+}
+
+.sponsor-slideup.is-visible {
+  transform: translateY(0);
+}
+
+.slideup-title {
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+.slideup-text {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.6;
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+/* Links (Neutrale hover) */
+.slideup-partner-link {
+  color: #64748b;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.slideup-partner-link:hover { color: #334155 !important; text-decoration: underline; background: transparent !important; }
+
+.slideup-deny {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 12px;
+  margin-top: 4px;
+  text-decoration: underline;
+  transition: color 0.2s;
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+.slideup-deny:hover { color: #475569 !important; background: transparent !important; }
+
+/* Button (Pop style) */
+.slideup-actions .cta-primary {
+  width: 100%;
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #14B670 0%, #0d9356 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(20, 182, 112, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, filter 0.2s;
+}
+.slideup-actions .cta-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(20, 182, 112, 0.4);
+  filter: brightness(1.05);
+}
+.slideup-actions .cta-primary:active { transform: scale(0.98); }
+
+/* Loading Spinner */
+.slideup-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+}
+.cta-primary.is-loading .slideup-spinner { display: block; }
+.cta-primary.is-loading svg { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
