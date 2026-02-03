@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ coregRenderer.js — UK Version (With Aggressive Scroll Fix)
+// ✅ coregRenderer.js — UK Version (With Text Input & Global Sync)
 // =============================================================
 
 if (typeof window.API_COREG === "undefined") {
@@ -12,67 +12,50 @@ const API_COREG = window.API_COREG;
 // 🛠️ HELPER: FORCE SCROLL TOP (Aggressive)
 // =============================================================
 function forceScrollTop() {
-  // 1. Directe window scroll
   window.scrollTo(0, 0);
-
-  // 2. Body en HTML
   document.body.scrollTop = 0;
   document.documentElement.scrollTop = 0;
-
-  // 3. Swipe Pages Containers (belangrijk voor mobiel/embedded)
   const wrappers = document.querySelectorAll('.swipe-page-wrapper, .section-container, .coreg-wrapper-fixed');
-  wrappers.forEach(el => {
-    el.scrollTop = 0;
-  });
-
-  // 4. Fallback met timeout
-  setTimeout(() => {
-    window.scrollTo(0, 0);
-    document.body.scrollTop = 0;
-  }, 50);
+  wrappers.forEach(el => { el.scrollTop = 0; });
+  setTimeout(() => { window.scrollTo(0, 0); document.body.scrollTop = 0; }, 50);
 }
 
 // =============================================================
-// ✅ COREG PAD SELECTIE & CONFIG
+// ✅ COREG PATH SELECTION & CONFIG
 // =============================================================
-const COREG_PATHS = window.coregPaths || {
-  default: { mode: "all" }
-};
-
+const COREG_PATHS = window.coregPaths || { default: { mode: "all" } };
 const urlParams = new URLSearchParams(window.location.search);
 const status = urlParams.get("status");
 const coregParam = urlParams.get("coreg");
 
+// 1. Set global defaults
 let activeCoregPath = COREG_PATHS.default;
-let activeCoregPathKey = "default";
+window.activeCoregPathKey = "default";
 
+// 2. Status Override (Example: Energy flow)
 if (status === "energie" && COREG_PATHS.energie_direct) {
   activeCoregPath = COREG_PATHS.energie_direct;
-  activeCoregPathKey = "energie_direct";
+  window.activeCoregPathKey = "energie_direct";
 }
+// 3. Manual Override (?coreg=...)
 else if (coregParam && COREG_PATHS[coregParam]) {
   activeCoregPath = COREG_PATHS[coregParam];
-  activeCoregPathKey = coregParam;
+  window.activeCoregPathKey = coregParam;
 }
 
-// Filter campaigns obv pad:
+// Filter campaigns based on path
 function applyCoregPathFilter(campaigns, coregPath) {
-  if (activeCoregPathKey === "default") {
+  // Always check global variable for consistency
+  if (window.activeCoregPathKey === "default") {
     return campaigns.filter(c => !c.uitsluiten_standaardpad);
   }
 
   if (coregPath && coregPath.mode === "keys") {
     const keys = coregPath.steps || [];
-
-    const filtered = campaigns.filter(
-      c => c.coreg_key && keys.includes(c.coreg_key)
-    );
-
+    const filtered = campaigns.filter(c => c.coreg_key && keys.includes(c.coreg_key));
+    
     if (keys.length > 0) {
-      const cidOrder = keys
-        .map(k => campaigns.find(c => c.coreg_key === k)?.cid)
-        .filter(Boolean);
-
+      const cidOrder = keys.map(k => campaigns.find(c => c.coreg_key === k)?.cid).filter(Boolean);
       filtered.sort((a, b) => {
         const ai = cidOrder.indexOf(a.cid);
         const bi = cidOrder.indexOf(b.cid);
@@ -85,11 +68,10 @@ function applyCoregPathFilter(campaigns, coregPath) {
 }
 
 // =============================================================
-// 🔧 Logging toggle
+// 🔧 Logging
 // =============================================================
 const DEBUG = false; 
 const log   = (...args) => { if (DEBUG) console.log(...args); };
-const warn  = (...args) => { if (DEBUG) console.warn(...args); };
 const error = (...args) => console.error(...args); 
 
 // =============================================================
@@ -132,7 +114,36 @@ function renderCampaignBlock(campaign, steps) {
   const visible = steps && campaign.step > 1 ? "none" : "block";
   const isFinal = campaign.isFinal ? "final-coreg" : "";
 
-  // DROPDOWN STYLE
+  // --- NEW: TEXT INPUT ---
+  if (style === "text_input") {
+    return `
+      <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
+           data-cid="${campaign.cid}" data-sid="${campaign.sid}"
+           style="display:${visible}">
+        <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title}">
+        <h3 class="coreg-title">${campaign.title}</h3>
+        <p class="coreg-description">${campaign.description || ""}</p>
+
+        <div class="coreg-input-wrapper" style="margin-bottom: 15px;">
+          <input type="text" class="coreg-text-input" 
+                 placeholder="Type your answer..." 
+                 data-cid="${campaign.cid}" 
+                 style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; margin-bottom: 10px;">
+          
+          <button class="flow-next btn-text-submit cta-primary"
+                  data-campaign="${campaign.id}"
+                  data-cid="${campaign.cid}"
+                  data-sid="${campaign.sid}"
+                  style="width: 100%; padding: 12px; font-weight: bold; cursor: pointer;">
+            Continue
+          </button>
+        </div>
+
+        <a href="#" class="skip-link" data-campaign="${campaign.id}">No interest, skip</a>
+      </div>`;
+  }
+
+  // --- DROPDOWN ---
   if (style === "dropdown") {
     return `
       <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
@@ -156,7 +167,7 @@ function renderCampaignBlock(campaign, steps) {
       </div>`;
   }
 
-  // BUTTONS STYLE (Yes/No)
+  // --- BUTTONS (Default) ---
   return `
     <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
          data-cid="${campaign.cid}" data-sid="${campaign.sid}"
@@ -190,7 +201,7 @@ function renderCampaignBlock(campaign, steps) {
 }
 
 // =============================================================
-// Fetch Campaigns
+// Fetch & Build
 // =============================================================
 async function fetchCampaigns() {
   try {
@@ -205,9 +216,6 @@ async function fetchCampaigns() {
   }
 }
 
-// =============================================================
-// Payload Builder
-// =============================================================
 async function buildCoregPayload(campaign, answerValue) {
   log("buildCoregPayload IN:", { campaign, answerValue });
 
@@ -264,7 +272,7 @@ async function initCoregFlow() {
   campaigns = applyCoregPathFilter(campaigns, activeCoregPath);
   window.allCampaigns = campaigns;
 
-  // Normalize longform requirements
+  // Longform check
   campaigns.forEach(c => {
     c.requiresLongForm =
       c.requiresLongForm === true || c.requiresLongForm === "true" ||
@@ -273,7 +281,7 @@ async function initCoregFlow() {
   const longFormCids = new Set(campaigns.filter(c => c.requiresLongForm).map(c => c.cid));
   campaigns.forEach(c => { if (longFormCids.has(c.cid)) c.requiresLongForm = true; });
 
-  // Sort + Group
+  // Sort & Group
   const ordered = [...campaigns].sort((a, b) => (a.order || 0) - (b.order || 0));
   const grouped = {};
   ordered.forEach(c => {
@@ -283,7 +291,7 @@ async function initCoregFlow() {
     }
   });
 
-  // Render (🇬🇧 Translations)
+  // Render HTML
   container.innerHTML = `
     <div class="coreg-inner">
       <div class="coreg-header">
@@ -307,13 +315,10 @@ async function initCoregFlow() {
   }
 
   const sectionsContainer = container.querySelector("#coreg-sections");
-
   ordered.forEach((camp, idx) => {
     camp.isFinal = idx === ordered.length - 1;
     if (grouped[camp.cid]) {
-      grouped[camp.cid].forEach(step =>
-        sectionsContainer.innerHTML += renderCampaignBlock(step, true)
-      );
+      grouped[camp.cid].forEach(step => sectionsContainer.innerHTML += renderCampaignBlock(step, true));
     } else {
       sectionsContainer.innerHTML += renderCampaignBlock(camp, false);
     }
@@ -322,13 +327,11 @@ async function initCoregFlow() {
   const sections = [...sectionsContainer.querySelectorAll(".coreg-section")];
   sections.forEach((s, i) => (s.style.display = i === 0 ? "block" : "none"));
 
-  // Progress Bar
+  // --- Logic Functions ---
   function updateProgressBar(idx) {
     const total = sections.length;
-    const START = 25;
-    const END = 90;
+    const START = 25, END = 90;
     const pct = Math.round(START + ((idx + 1) / total) * (END - START));
-
     const wrap = container.querySelector(".ld-progress");
     const val = container.querySelector(".progress-value");
     const mot = container.querySelector("#coreg-motivation");
@@ -338,24 +341,16 @@ async function initCoregFlow() {
       if (window.animateProgressBar) window.animateProgressBar(wrap);
     }
     if (val) val.textContent = pct + "%";
-    if (mot) {
-      mot.textContent = (pct < 90)
-        ? "Just a few more questions to complete your entry 🎯"
-        : "Almost done — last step 🙌";
-    }
+    if (mot) mot.textContent = pct < 90 ? "Just a few more questions to complete your entry 🎯" : "Almost done — last step 🙌";
   }
 
-  // Next Section Logic (MET SCROLL FIX)
   function showNextSection(cur) {
     const idx = sections.indexOf(cur);
     if (idx < sections.length - 1) {
       cur.style.display = "none";
       sections[idx + 1].style.display = "block";
       updateProgressBar(idx + 1);
-      
-      // ✅ AGGRESSIVE SCROLL FIX
       forceScrollTop();
-      
     } else {
       handleFinalCoreg();
     }
@@ -374,67 +369,50 @@ async function initCoregFlow() {
     }
   }
 
-  // Event Listeners
+  // --- Event Handlers ---
   sections.forEach(section => {
-    // Dropdown Logic
+    
+    // 1. Dropdown
     const dropdown = section.querySelector(".coreg-dropdown");
     if (dropdown) {
       dropdown.addEventListener("change", async e => {
         const opt = e.target.selectedOptions[0];
         if (!opt.value) return;
-
+        
         const camp = campaigns.find(c => c.id == dropdown.dataset.campaign);
         sessionStorage.setItem(`f_2575_coreg_answer_dropdown_${camp.cid}`, opt.value);
-
-        const answerValue = {
-          answer_value: opt.value,
-          cid: opt.dataset.cid,
-          sid: opt.dataset.sid
-        };
-
-        storeCoregAnswerOnly(camp, answerValue);
-
-        if (camp.requiresLongForm) {
-          const isFinalStep = isLastStepOfCampaign(section, camp.cid, sections);
-          if (!isFinalStep) {
-            showNextSection(section);
-            return;
-          }
-          sessionStorage.setItem("requiresLongForm", "true");
-          const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
-          if (!pending.some(p => p.cid === camp.cid)) pending.push({ cid: camp.cid, sid: camp.sid });
-          sessionStorage.setItem("longFormCampaigns", JSON.stringify(pending));
-          showNextSection(section);
-          return;
-        }
-
-        const shortDone = sessionStorage.getItem("shortFormCompleted") === "true";
-        if (!shortDone) {
-          const pending = JSON.parse(sessionStorage.getItem("pendingShortCoreg") || "[]");
-          pending.push({
-            cid: answerValue.cid || camp.cid,
-            sid: answerValue.sid || camp.sid,
-            answer_value: answerValue.answer_value
-          });
-          sessionStorage.setItem("pendingShortCoreg", JSON.stringify(pending));
-          showNextSection(section);
-          return;
-        }
-        
-        const idx = sections.indexOf(section);
-        const moreSteps = sections.slice(idx + 1).some(s => s.dataset.cid == camp.cid);
-        if (moreSteps) {
-          showNextSection(section);
-          return;
-        }
-        
-        const payload = await buildCoregPayload(camp, answerValue);
-        window.fetchLead(payload);
-        showNextSection(section);
+        const answerValue = { answer_value: opt.value, cid: opt.dataset.cid, sid: opt.dataset.sid };
+        await handleAnswer(camp, answerValue, section);
       });
     }
 
-    // Skip Link
+    // 2. Text Input (NEW 🇬🇧)
+    const textSubmit = section.querySelector(".btn-text-submit");
+    if (textSubmit) {
+      const inputField = section.querySelector(".coreg-text-input");
+      if(inputField) {
+        inputField.addEventListener("keydown", (e) => {
+          if(e.key === "Enter") textSubmit.click();
+        });
+      }
+      textSubmit.addEventListener("click", async () => {
+        const val = inputField.value.trim();
+        if (!val) {
+          alert("Please enter an answer to continue."); 
+          inputField.focus();
+          return;
+        }
+        const camp = campaigns.find(c => c.id == textSubmit.dataset.campaign);
+        const answerValue = { 
+          answer_value: val, 
+          cid: textSubmit.dataset.cid, 
+          sid: textSubmit.dataset.sid 
+        };
+        await handleAnswer(camp, answerValue, section);
+      });
+    }
+
+    // 3. Skip Link
     const skip = section.querySelector(".skip-link");
     if (skip) {
       skip.addEventListener("click", e => {
@@ -443,89 +421,81 @@ async function initCoregFlow() {
       });
     }
 
-    // Button Answers (Yes/No)
+    // 4. Buttons
     section.querySelectorAll(".btn-answer, .btn-skip").forEach(btn => {
       btn.addEventListener("click", async () => {
         const camp = campaigns.find(c => c.id == btn.dataset.campaign);
         const answer = btn.dataset.answer;
         const isNegative = btn.classList.contains("btn-skip") || answer === "no";
 
-        const answerValue = {
-          answer_value: answer,
-          cid: btn.dataset.cid,
-          sid: btn.dataset.sid
-        };
-
-        // Positive Answer
-        if (!isNegative) {
-          const shortDone = sessionStorage.getItem("shortFormCompleted") === "true";
-          storeCoregAnswerOnly(camp, answerValue);
-
-          // LONG FORM COREG Logic
-          if (camp.requiresLongForm) {
-            const isFinalStep = isLastStepOfCampaign(section, camp.cid, sections);
-            if (!isFinalStep) {
-              showNextSection(section);
-              return;
-            }
-            sessionStorage.setItem("requiresLongForm", "true");
-            const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
-            if (!pending.some(p => p.cid === camp.cid)) pending.push({ cid: camp.cid, sid: camp.sid });
-            sessionStorage.setItem("longFormCampaigns", JSON.stringify(pending));
-            showNextSection(section);
-            return;
-          }
-
-          // SHORT FORM COREG Logic
-          if (!shortDone) {
-            const pending = JSON.parse(sessionStorage.getItem("pendingShortCoreg") || "[]");
-            pending.push({
-              cid: answerValue.cid || camp.cid,
-              sid: answerValue.sid || camp.sid,
-              answer_value: answerValue.answer_value
-            });
-            sessionStorage.setItem("pendingShortCoreg", JSON.stringify(pending));
-            showNextSection(section);
-            return;
-          }
-
-          // Multi-step check
+        if (isNegative) {
           const idx = sections.indexOf(section);
-          const hasMoreSteps = sections.slice(idx + 1).some(s => s.dataset.cid == camp.cid);
-          if (hasMoreSteps) {
-            showNextSection(section);
-            return;
+          let j = idx + 1;
+          while (j < sections.length && sections[j].dataset.cid == camp.cid) j++;
+          section.style.display = "none";
+          if (j < sections.length) {
+            sections[j].style.display = "block";
+            updateProgressBar(j);
+            forceScrollTop();
+          } else {
+            handleFinalCoreg();
           }
-          
-          // Direct send
-          const payload = await buildCoregPayload(camp, answerValue);
-          window.fetchLead(payload);
-          showNextSection(section);
-          return;
-        }
-
-        // Negative Answer (Skip logic)
-        const idx = sections.indexOf(section);
-        let j = idx + 1;
-        while (j < sections.length && sections[j].dataset.cid == camp.cid) j++;
-        
-        section.style.display = "none";
-        if (j < sections.length) {
-          sections[j].style.display = "block";
-          updateProgressBar(j);
-          // ✅ AGGRESSIVE SCROLL (Skip)
-          forceScrollTop();
         } else {
-          handleFinalCoreg();
+          const answerValue = { answer_value: answer, cid: btn.dataset.cid, sid: btn.dataset.sid };
+          await handleAnswer(camp, answerValue, section);
         }
       });
     });
   });
+
+  // Central Answer Handler
+  async function handleAnswer(camp, answerValue, section) {
+    storeCoregAnswerOnly(camp, answerValue);
+
+    // 1. Long Form check
+    if (camp.requiresLongForm) {
+      const isFinalStep = isLastStepOfCampaign(section, camp.cid, sections);
+      if (!isFinalStep) {
+        showNextSection(section);
+        return;
+      }
+      sessionStorage.setItem("requiresLongForm", "true");
+      const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
+      if (!pending.some(p => p.cid === camp.cid)) pending.push({ cid: camp.cid, sid: camp.sid });
+      sessionStorage.setItem("longFormCampaigns", JSON.stringify(pending));
+      showNextSection(section);
+      return;
+    }
+
+    // 2. Short form check
+    const shortDone = sessionStorage.getItem("shortFormCompleted") === "true";
+    if (!shortDone) {
+      const pending = JSON.parse(sessionStorage.getItem("pendingShortCoreg") || "[]");
+      pending.push({
+        cid: answerValue.cid || camp.cid,
+        sid: answerValue.sid || camp.sid,
+        answer_value: answerValue.answer_value
+      });
+      sessionStorage.setItem("pendingShortCoreg", JSON.stringify(pending));
+      showNextSection(section);
+      return;
+    }
+
+    // 3. Multi-step check
+    const idx = sections.indexOf(section);
+    const hasMoreSteps = sections.slice(idx + 1).some(s => s.dataset.cid == camp.cid);
+    if (hasMoreSteps) {
+      showNextSection(section);
+      return;
+    }
+
+    // 4. Send Lead
+    const payload = await buildCoregPayload(camp, answerValue);
+    window.fetchLead(payload);
+    showNextSection(section);
+  }
 }
 
-// ======================================
-// Start renderer
-// ======================================
 window.addEventListener("DOMContentLoaded", initCoregFlow);
 
 if (!DEBUG) console.info("🎉 coregRenderer (UK) loaded successfully");
