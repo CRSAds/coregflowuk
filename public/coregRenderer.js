@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ coregRenderer.js — UK Version (With Text Input & Global Sync)
+// ✅ coregRenderer.js — UK Version (Fix: Supports 'answerfield')
 // =============================================================
 
 if (typeof window.API_COREG === "undefined") {
@@ -32,12 +32,12 @@ const coregParam = urlParams.get("coreg");
 let activeCoregPath = COREG_PATHS.default;
 window.activeCoregPathKey = "default";
 
-// 2. Status Override (Example: Energy flow)
+// 2. Status Override
 if (status === "energie" && COREG_PATHS.energie_direct) {
   activeCoregPath = COREG_PATHS.energie_direct;
   window.activeCoregPathKey = "energie_direct";
 }
-// 3. Manual Override (?coreg=...)
+// 3. Manual Override
 else if (coregParam && COREG_PATHS[coregParam]) {
   activeCoregPath = COREG_PATHS[coregParam];
   window.activeCoregPathKey = coregParam;
@@ -45,7 +45,6 @@ else if (coregParam && COREG_PATHS[coregParam]) {
 
 // Filter campaigns based on path
 function applyCoregPathFilter(campaigns, coregPath) {
-  // Always check global variable for consistency
   if (window.activeCoregPathKey === "default") {
     return campaigns.filter(c => !c.uitsluiten_standaardpad);
   }
@@ -114,8 +113,8 @@ function renderCampaignBlock(campaign, steps) {
   const visible = steps && campaign.step > 1 ? "none" : "block";
   const isFinal = campaign.isFinal ? "final-coreg" : "";
 
-  // --- NEW: TEXT INPUT ---
-  if (style === "text_input") {
+  // --- NEW: TEXT INPUT (Supports 'text_input' AND 'answerfield') ---
+  if (style === "text_input" || style === "answerfield") {
     return `
       <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
            data-cid="${campaign.cid}" data-sid="${campaign.sid}"
@@ -332,6 +331,7 @@ async function initCoregFlow() {
     const total = sections.length;
     const START = 25, END = 90;
     const pct = Math.round(START + ((idx + 1) / total) * (END - START));
+
     const wrap = container.querySelector(".ld-progress");
     const val = container.querySelector(".progress-value");
     const mot = container.querySelector("#coreg-motivation");
@@ -341,7 +341,9 @@ async function initCoregFlow() {
       if (window.animateProgressBar) window.animateProgressBar(wrap);
     }
     if (val) val.textContent = pct + "%";
-    if (mot) mot.textContent = pct < 90 ? "Just a few more questions to complete your entry 🎯" : "Almost done — last step 🙌";
+    if (mot) {
+      mot.textContent = (pct < 90) ? "Just a few more questions to complete your entry 🎯" : "Almost done — last step 🙌";
+    }
   }
 
   function showNextSection(cur) {
@@ -386,7 +388,7 @@ async function initCoregFlow() {
       });
     }
 
-    // 2. Text Input (NEW 🇬🇧)
+    // 2. Text Input (With Fix)
     const textSubmit = section.querySelector(".btn-text-submit");
     if (textSubmit) {
       const inputField = section.querySelector(".coreg-text-input");
