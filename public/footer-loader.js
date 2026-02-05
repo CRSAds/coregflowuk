@@ -1,15 +1,13 @@
 // =============================================================
-// ✅ footer-loader.js — UK Version (Full Logic & Translations)
+// ✅ footer-loader.js — UK Version (Safe Update)
 // =============================================================
 
 (function () {
   const params = new URLSearchParams(window.location.search);
-  // Status check mag blijven, maar voor UK wellicht minder strikt of anders?
-  // Voor nu behouden we de check om consistentie te bewaren.
   const status = params.get("status");
   
-  // Optioneel: als je wilt dat het script altijd draait, haal deze check weg.
-  // if (status !== "online" && status !== "live" && status !== "energie") ...
+  // 👇 HARDE URL NAAR JE VERCEL BACKEND
+  const API_BASE = "https://coregflowuk.vercel.app";
 
   console.log("🦶 footer-loader.js started (UK)");
 
@@ -30,21 +28,23 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     // === Popup injecteren (English) ===
-    const popupHTML = `
-      <div id="footer-popup" class="footer-popup" style="display:none;">
-        <div class="footer-overlay"></div>
-        <div class="footer-content" role="dialog" aria-modal="true">
-          <button id="close-footer-popup" aria-label="Close">×</button>
-          <div id="footer-popup-content">Loading...</div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(el(popupHTML));
+    if (!document.getElementById("footer-popup")) {
+        const popupHTML = `
+          <div id="footer-popup" class="footer-popup" style="display:none;">
+            <div class="footer-overlay"></div>
+            <div class="footer-content" role="dialog" aria-modal="true">
+              <button id="close-footer-popup" aria-label="Close">×</button>
+              <div id="footer-popup-content">Loading...</div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(el(popupHTML));
+    }
 
     const popup = document.getElementById("footer-popup");
     const popupContent = document.getElementById("footer-popup-content");
 
-    // === CSS (Identiek aan NL) ===
+    // === CSS (Identiek aan NL - BEHOUDEN) ===
     const style = document.createElement("style");
     style.textContent = `
       #dynamic-footer {
@@ -161,26 +161,14 @@
     document.head.appendChild(style);
 
     // === Data ophalen ===
-    
-    // We gebruiken 'UK General' of iets dergelijks als naam in Directus,
-    // maar we hebben al een filter op country=UK in de API.
-    // Dus we pakken gewoon de footer die matcht, of de eerste.
-    
     let footerData = null;
     try {
-      // 🇬🇧 WIJZIGING: Relatief pad (/api/footers.js)
-      const res = await fetch("https://coregflowuk.vercel.app/api/footers.js");
+      // ✅ Absolute URL
+      const res = await fetch(`${API_BASE}/api/footers.js`);
       const { data } = await res.json();
       
       const coregPathKey = window.activeCoregPathKey || "default";
-      
-      // 1️⃣ Eerst proberen: coreg-specifieke footer
-      footerData = data.find(f => f.coreg_path === coregPathKey);
-      
-      // 2️⃣ Fallback: Pak de eerste die we vinden (want de API filtert al op UK!)
-      if (!footerData && data.length > 0) {
-        footerData = data[0];
-      }
+      footerData = data.find(f => f.coreg_path === coregPathKey) || data[0]; // Fallback
 
       if (!footerData) {
         console.warn("⚠️ No UK footer data found.");
@@ -210,7 +198,7 @@
       ? `<img src="${footerData.logo}" alt="Logo" loading="lazy">`
       : "";
 
-    // 🇬🇧 Translations in HTML
+    // Translations in HTML
     footerContainer.innerHTML = `
       <div class="footer-inner">
         <div class="brand">${logo}</div>
@@ -225,18 +213,25 @@
 
     // === Popup gedrag ===
     document.addEventListener("click", (e) => {
-      // Terms
-      if (e.target.closest("#open-terms") || e.target.id === "open-actievoorwaarden-inline") {
+      // 1. Terms (Footer knop)
+      if (e.target.closest("#open-terms")) {
         e.preventDefault();
-        // Als het de inline link is, willen we actievoorwaarden, anders general terms
-        // In NL staat dit soms los, hier combineren we het voor simpelheid of splitsen we.
-        // Laten we de 'terms_content' pakken.
         popupContent.innerHTML = footerData.terms_content || "<p>No terms available.</p>";
         popup.style.display = "flex";
         lockScroll();
       }
+
+      // 2. Actievoorwaarden (Inline link in checkbox)
+      // ✅ Gebruik .closest() zodat het ook werkt als je op de tekst klikt
+      if (e.target.closest("#open-actievoorwaarden-inline")) {
+        e.preventDefault();
+        // Toon specifieke actievoorwaarden als ze er zijn, anders fallback naar algemene terms
+        popupContent.innerHTML = footerData.actievoorwaarden || footerData.terms_content || "<p>No terms available.</p>";
+        popup.style.display = "flex";
+        lockScroll();
+      }
       
-      // Privacy
+      // 3. Privacy
       if (e.target.closest("#open-privacy")) {
         e.preventDefault();
         popupContent.innerHTML = footerData.privacy_content || "<p>No privacy policy available.</p>";
@@ -244,22 +239,20 @@
         lockScroll();
       }
       
-      // Close
+      // 4. Close
       if (e.target.id === "close-footer-popup" || e.target.classList.contains("footer-overlay")) {
         popup.style.display = "none";
         unlockScroll();
       }
     });
 
-    // === Actievoorwaarden Injectie (in consent tekst) ===
-    // Dit zoekt naar <div id="actievoorwaarden"> in de tekst, vaak niet gebruikt in nieuwe flows,
-    // maar we laten het staan voor compatibiliteit.
+    // === Actievoorwaarden Injectie (Fallback) ===
     const actieDiv = document.getElementById("actievoorwaarden");
     if (actieDiv && footerData.actievoorwaarden) {
       actieDiv.innerHTML = footerData.actievoorwaarden;
     }
 
-    // Popup hoisten (zorgen dat hij bovenop ligt)
+    // Popup hoisten
     const popupEl = document.getElementById("footer-popup");
     if (popupEl && popupEl.parentElement !== document.body) document.body.appendChild(popupEl);
 
