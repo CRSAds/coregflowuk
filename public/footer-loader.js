@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ footer-loader.js — UK Version (Styling Fix)
+// ✅ footer-loader.js — UK Version (Readable Text Fix)
 // =============================================================
 
 (function () {
@@ -34,19 +34,26 @@
           position: relative; background: #fff; padding: 40px; 
           width: min(94vw, 850px); max-height: 85vh; overflow-y: auto; 
           border-radius: 12px; z-index: 2; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
-          font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; color: #333;
+          font-family: 'Inter', sans-serif; color: #333; text-align: left;
         }
         .fl-close { position: absolute; top: 10px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: #666; }
-        .fl-close:hover { color: #000; }
         
-        /* Content Reset voor CMS data */
+        /* --- Content Reset --- */
+        .fl-content * { text-transform: none !important; } /* GEEN HOOFDLETTERS */
+        
         .fl-content h1, .fl-content h2, .fl-content h3, .fl-content h4 {
-           font-size: 16px; font-weight: 700; margin: 1.2em 0 0.5em 0; color: #111; line-height: 1.4;
+           font-size: 15px !important; font-weight: 700 !important; 
+           margin: 15px 0 8px 0 !important; color: #111 !important; 
+           line-height: 1.4 !important;
         }
-        .fl-content h1:first-child, .fl-content h2:first-child { margin-top: 0; }
-        .fl-content p { margin-bottom: 1em; }
-        .fl-content ul, .fl-content ol { padding-left: 20px; margin-bottom: 1em; }
-        .fl-content li { margin-bottom: 4px; }
+        .fl-content h1:first-child, .fl-content h2:first-child { margin-top: 0 !important; }
+        
+        .fl-content p, .fl-content li, .fl-content span, .fl-content div { 
+           font-size: 13px !important; line-height: 1.6 !important; 
+           margin-bottom: 10px !important; color: #444 !important; 
+           font-weight: 400 !important;
+        }
+        .fl-content strong, .fl-content b { font-weight: 700 !important; color: #000 !important; }
         
         body.fl-locked { overflow: hidden !important; }
       `;
