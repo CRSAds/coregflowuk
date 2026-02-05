@@ -1,12 +1,12 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Absolute URLs & Speed)
+// ✅ formSubmit.js — UK Version (Full Restoration)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
   window.submittedCampaigns = window.submittedCampaigns || new Set();
   
-  // 👇 DEZE URL MOET NAAR JE VERCEL BACKEND WIJZEN
+  // 👇 API BASE URL
   const API_BASE = "https://coregflowuk.vercel.app";
 
   const SLIDEUP_TEMPLATE = `
@@ -30,6 +30,7 @@ if (!window.formSubmitInitialized) {
     </div>
   `;
 
+  // 1. INIT
   function initFormLogic() {
     const form = document.getElementById("lead-form");
     if (!form) return;
@@ -53,6 +54,7 @@ if (!window.formSubmitInitialized) {
     }
   }
 
+  // 2. INPUT HELPERS
   function setupInputLogic() {
     // DOB
     const dobInput = document.getElementById("dob");
@@ -69,13 +71,10 @@ if (!window.formSubmitInitialized) {
         return `${d[0]||"D"}${d[1]||"D"} / ${d[2]||"M"}${d[3]||"M"} / ${d[4]||"Y"}${d[5]||"Y"}${d[6]||"Y"}${d[7]||"Y"}`;
       };
 
-      dobInput.addEventListener("focus", () => {
-        if (dobInput.value === TEMPLATE) setCursor(0);
-      });
+      dobInput.addEventListener("focus", () => { if (dobInput.value === TEMPLATE) setCursor(0); });
       dobInput.addEventListener("click", () => {
          const digits = getDigits();
-         const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
-         setCursor(cursorMap[digits.length] ?? 0);
+         setCursor([0, 1, 5, 6, 10, 11, 12, 13][digits.length] ?? 0);
       });
       dobInput.addEventListener("keydown", (e) => {
         const key = e.key; const digits = getDigits();
@@ -90,8 +89,7 @@ if (!window.formSubmitInitialized) {
 
         dobInput.value = render(digits);
         dobInput.classList.toggle("is-placeholder", dobInput.value === TEMPLATE);
-        const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
-        setCursor(cursorMap[digits.length] ?? 14);
+        setCursor([0, 1, 5, 6, 10, 11, 12, 13][digits.length] ?? 14);
         if (digits.length === 8) sessionStorage.setItem("dob_full", digits.join(""));
       });
     }
@@ -106,7 +104,7 @@ if (!window.formSubmitInitialized) {
       });
     }
 
-    // Postcode (Absolute URL!)
+    // Postcode
     const pcInput = document.getElementById("postcode");
     if (pcInput && !pcInput.dataset.bound) {
       pcInput.dataset.bound = "true";
@@ -127,6 +125,7 @@ if (!window.formSubmitInitialized) {
     }
   }
 
+  // 3. API & PAYLOAD
   async function getIpOnce() {
     let ip = sessionStorage.getItem("user_ip");
     if (ip) return ip;
@@ -153,7 +152,8 @@ if (!window.formSubmitInitialized) {
        dob = `${rawDigits.slice(4,8)}-${rawDigits.slice(2,4)}-${rawDigits.slice(0,2)}`;
     }
 
-    return {
+    // Base Payload
+    const payload = {
       cid: campaign.cid, sid: campaign.sid,
       gender:     sessionStorage.getItem("gender")    || "",
       firstname:  sessionStorage.getItem("firstname") || "",
@@ -170,6 +170,12 @@ if (!window.formSubmitInitialized) {
       f_55_optindate: new Date().toISOString().split(".")[0] + "+0000",
       is_shortform: campaign.is_shortform || false,
     };
+
+    // Voeg coreg antwoorden toe als ze in het campaign object zitten
+    if (campaign.f_2014_coreg_answer) payload.f_2014_coreg_answer = campaign.f_2014_coreg_answer;
+    if (campaign.f_2575_coreg_answer_dropdown) payload.f_2575_coreg_answer_dropdown = campaign.f_2575_coreg_answer_dropdown;
+
+    return payload;
   }
 
   window.fetchLead = async function(payload) {
@@ -178,7 +184,6 @@ if (!window.formSubmitInitialized) {
     if (window.submittedCampaigns.has(key)) return { skipped: true };
 
     try {
-      // ✅ Absolute URL!
       const res = await fetch(`${API_BASE}/api/lead.js`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -188,6 +193,7 @@ if (!window.formSubmitInitialized) {
     } catch (err) { return { success: false }; }
   }
 
+  // 4. HANDLERS
   let submitting = false;
 
   async function handleShortForm(e) {
@@ -206,6 +212,7 @@ if (!window.formSubmitInitialized) {
     e.preventDefault(); e.stopPropagation();
     if (submitting) return;
 
+    // Save Data
     const genderEl = form.querySelector("input[name='gender']:checked");
     if (genderEl) sessionStorage.setItem("gender", genderEl.value);
     ["firstname", "lastname", "email"].forEach(id => {
@@ -214,6 +221,7 @@ if (!window.formSubmitInitialized) {
     });
     getIpOnce();
 
+    // Slide-up Logic
     const useSlideUp = form.dataset.sponsorSlideup === "true";
     const slideup = document.getElementById("sponsor-slideup");
 
@@ -231,10 +239,7 @@ if (!window.formSubmitInitialized) {
            submitting = true;
            
            sessionStorage.setItem("sponsorsAccepted", "true");
-           
-           // Fire & Forget (Achtergrond)
-           sendUkSponsorLeads(); 
-           
+           sendUkSponsorLeads(); // Background
            await finalizeUkShortForm();
          });
 
@@ -242,7 +247,6 @@ if (!window.formSubmitInitialized) {
            slideup.classList.remove("is-visible");
            btn.innerHTML = "Please wait...";
            submitting = true;
-           
            sessionStorage.setItem("sponsorsAccepted", "false");
            await finalizeUkShortForm();
          });
@@ -257,7 +261,6 @@ if (!window.formSubmitInitialized) {
 
   async function sendUkSponsorLeads() {
     try {
-      // ✅ Absolute URL!
       const res = await fetch(`${API_BASE}/api/cosponsors.js`);
       const json = await res.json();
       if(Array.isArray(json.data)) {
@@ -279,17 +282,71 @@ if (!window.formSubmitInitialized) {
     document.dispatchEvent(new Event("shortFormSubmitted"));
   }
 
+  // -----------------------------------------------------------
+  // 5. BOOTSTRAP
+  // -----------------------------------------------------------
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initFormLogic);
   } else {
     initFormLogic();
   }
 
+  // -----------------------------------------------------------
+  // ⚠️ CRUCIAAL: LONG FORM HANDLER (HERSTELD!)
+  // Hier worden de coreg campagnes uit de slides verstuurd.
+  // -----------------------------------------------------------
   document.addEventListener("click", async e => {
     if (!e.target.matches("#submit-long-form")) return;
+    
     e.preventDefault();
+    
+    // 1. Validatie
+    const reqFields = ["postcode", "address1", "city", "phone1"];
+    const invalid = reqFields.filter(id => !document.getElementById(id)?.value.trim());
+    
+    if (invalid.length) {
+        alert("Please fill in all required fields.");
+        return;
+    }
+    
+    const phoneVal = document.getElementById("phone1").value.replace(/\D/g,"");
+    if (!/^07\d{9}$/.test(phoneVal)) {
+        alert("Please enter a valid UK mobile number.");
+        return;
+    }
+
+    // 2. Data Opslaan
+    reqFields.forEach(id => sessionStorage.setItem(id, document.getElementById(id).value.trim()));
+    const ad2 = document.getElementById("address2");
+    if (ad2) sessionStorage.setItem("address2", ad2.value.trim());
+
+    // 3. Coreg Verzenden (uit queue)
+    const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
+    
+    // Async verzenden van alle pending coregs
+    (async () => {
+      await Promise.allSettled(pending.map(async camp => {
+         const ans = sessionStorage.getItem(`f_2014_coreg_answer_${camp.cid}`);
+         const drop = sessionStorage.getItem(`f_2575_coreg_answer_dropdown_${camp.cid}`);
+         
+         const payload = await window.buildPayload({
+           cid: camp.cid, 
+           sid: camp.sid, 
+           is_shortform: false, // Dit is belangrijk!
+           f_2014_coreg_answer: ans || undefined,
+           f_2575_coreg_answer_dropdown: drop || undefined
+         });
+         
+         return window.fetchLead(payload);
+      }));
+      
+      // Leegmaken na verzenden
+      sessionStorage.removeItem("longFormCampaigns");
+    })();
+
+    // 4. Navigatie triggeren
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
 
-  console.info("🎉 formSubmit loaded (UK Absolute URLs)");
+  console.info("🎉 formSubmit loaded (UK Full Restore)");
 }
