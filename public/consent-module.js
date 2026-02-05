@@ -19,9 +19,10 @@
       .pb-card {
         background: #fff; width: 90%; max-width: 500px;
         border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        display: flex; flex-direction: column; height: 80vh;
+        display: flex; flex-direction: column; height: auto; max-heigt: 50vh;
       }
       .pb-header {
+        flex: 0 0 auto;
         padding: 16px 20px; border-bottom: 1px solid #eee;
         display: flex; justify-content: space-between; align-items: center;
         background: #fff;
@@ -34,6 +35,7 @@
       
       /* --- Content Styling & Reset --- */
       .pb-body { 
+        flex: 1 1 auto;
         padding: 20px; overflow-y: auto; color: #333; font-family: 'Inter', sans-serif; 
         text-align: left; /* Zorg dat tekst links lijnt */
       }
