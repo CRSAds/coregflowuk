@@ -1,10 +1,10 @@
 // =============================================================
-// ✅ consent-module.js — UK Version (Self-Contained Styles)
+// ✅ consent-module.js — UK Version (Styling Fix)
 // =============================================================
 
 (function () {
 
-  // 1. CSS Injectie (Zodat popup altijd werkt)
+  // 1. CSS Injectie (Nu met reset voor CMS content)
   function injectStyles() {
     if (document.getElementById("cm-styles")) return;
     const style = document.createElement("style");
@@ -24,12 +24,29 @@
       .pb-header {
         padding: 16px 20px; border-bottom: 1px solid #eee;
         display: flex; justify-content: space-between; align-items: center;
+        background: #fff;
       }
-      .pb-title { margin: 0; font-size: 16px; font-weight: 700; color: #111; font-family: sans-serif; }
+      .pb-title { margin: 0; font-size: 16px; font-weight: 700; color: #111; font-family: 'Inter', sans-serif; }
       .pb-close {
         background: none; border: none; font-size: 24px; cursor: pointer; color: #888;
+        display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
       }
-      .pb-body { padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: #333; font-family: sans-serif; }
+      .pb-close:hover { color: #000; background: #f5f5f5; border-radius: 50%; }
+      
+      /* Content Styling & Resets */
+      .pb-body { 
+        padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.6; 
+        color: #333; font-family: 'Inter', sans-serif; 
+      }
+      /* Zorg dat koppen uit CMS niet gigantisch zijn */
+      .pb-body h1, .pb-body h2, .pb-body h3, .pb-body h4 {
+        font-size: 16px; font-weight: 700; margin: 1.2em 0 0.5em 0; color: #111; line-height: 1.4;
+      }
+      .pb-body h1:first-child, .pb-body h2:first-child { margin-top: 0; }
+      .pb-body p { margin-bottom: 1em; font-weight: 400; }
+      .pb-body ul, .pb-body ol { padding-left: 20px; margin-bottom: 1em; }
+      .pb-body li { margin-bottom: 4px; }
+      .pb-body strong, .pb-body b { font-weight: 600; }
     `;
     document.head.appendChild(style);
   }
@@ -51,7 +68,7 @@
   function getModal() {
     if (overlay) return overlay;
     
-    injectStyles(); // Zeker weten dat styles er zijn
+    injectStyles();
 
     overlay = document.createElement("div");
     overlay.className = "pb-overlay";
@@ -59,14 +76,13 @@
       <div class="pb-card">
         <div class="pb-header">
           <h3 class="pb-title">Terms & Conditions</h3>
-          <button class="pb-close">×</button>
+          <button class="pb-close" aria-label="Close">×</button>
         </div>
         <div class="pb-body" id="pb-content">Loading...</div>
       </div>
     `;
     document.body.appendChild(overlay);
 
-    // Close handlers
     const close = () => {
       overlay.classList.remove("is-visible");
       document.body.style.overflow = "";
@@ -79,7 +95,6 @@
 
   function waitForContent() {
     return new Promise(resolve => {
-      // Wacht op de div die footer-loader maakt
       const check = setInterval(() => {
         const el = document.getElementById("actievoorwaarden");
         if (el && el.innerHTML.trim().length > 0) {
@@ -88,7 +103,6 @@
         }
       }, 200);
       
-      // Of timeout na 3 sec en toon fallback
       setTimeout(() => {
         clearInterval(check);
         resolve(null);
@@ -96,7 +110,7 @@
     });
   }
 
-  // 4. Click Handler (Inline Link)
+  // 4. Click Handler
   document.addEventListener("click", async (e) => {
     if (e.target.closest("#open-actievoorwaarden-inline")) {
       e.preventDefault();
@@ -105,14 +119,12 @@
       const body = modal.querySelector("#pb-content");
       
       modal.classList.add("is-visible");
-      document.body.style.overflow = "hidden"; // Lock scroll
+      document.body.style.overflow = "hidden";
 
-      // Probeer content te pakken uit de brug
       const content = await waitForContent();
       if (content) {
         body.innerHTML = content;
       } else {
-        // Fallback als footer-loader traag is of faalt
         body.innerHTML = "<p>Please verify terms in the footer.</p>";
       }
     }
