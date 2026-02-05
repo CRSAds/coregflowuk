@@ -19,7 +19,7 @@
       .pb-card {
         background: #fff; width: 90%; max-width: 500px;
         border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        display: flex; flex-direction: column; max-height: 120vh;
+        display: flex; flex-direction: column; height: 80vh;
       }
       .pb-header {
         padding: 16px 20px; border-bottom: 1px solid #eee;
