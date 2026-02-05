@@ -1,12 +1,12 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Robust Timing Fix)
+// ✅ formSubmit.js — UK Version (Optimized Speed)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
   window.submittedCampaigns = window.submittedCampaigns || new Set();
 
-  // --- HTML Template (UK English) ---
+  // --- HTML Template ---
   const SLIDEUP_TEMPLATE = `
     <div class="sponsor-slideup" id="sponsor-slideup">
       <h3 class="slideup-title">Almost done!</h3>
@@ -28,53 +28,42 @@ if (!window.formSubmitInitialized) {
     </div>
   `;
 
-  // -----------------------------------------------------------
-  // 1. Main Initialization Logic
-  // -----------------------------------------------------------
+  // 1. INIT
   function initFormLogic() {
     const form = document.getElementById("lead-form");
-    if (!form) return; // Geen formulier = niets doen
+    if (!form) return;
 
-    // A. URL Parameters opslaan
+    // Params
     const urlParams = new URLSearchParams(window.location.search);
     ["t_id", "aff_id", "sub_id", "sub2", "offer_id"].forEach(key => {
       const val = urlParams.get(key);
       if (val) sessionStorage.setItem(key, val);
     });
 
-    // B. Injecteer Slide-up (indien nodig & nog niet aanwezig)
+    // Inject Slide-up
     if (form.dataset.sponsorSlideup === "true" && !document.getElementById("sponsor-slideup")) {
       form.insertAdjacentHTML('beforeend', SLIDEUP_TEMPLATE);
     }
 
-    // C. Input Logica (DOB, Phone, Postcode)
+    // Input Helpers
     setupInputLogic();
 
-    // D. Submit Handler Koppelen
+    // Handler
     const btn = form.querySelector(".flow-next, button[type='submit']");
     if (btn) {
-      // Gebruik {capture: true} om voorrang te krijgen op initFlow-lite
-      btn.removeEventListener("click", handleShortForm, true); // Veiligheidshalve eerst verwijderen
+      btn.removeEventListener("click", handleShortForm, true);
       btn.addEventListener("click", handleShortForm, true);
     }
   }
 
-  // -----------------------------------------------------------
-  // 2. Input Helpers (DOB, Postcode, etc.)
-  // -----------------------------------------------------------
+  // 2. INPUT HELPERS
   function setupInputLogic() {
-    // DOB Logic
+    // DOB
     const dobInput = document.getElementById("dob");
     if (dobInput && !dobInput.dataset.bound) {
       dobInput.dataset.bound = "true";
       const TEMPLATE = "DD / MM / YYYY";
-      
-      const updatePlaceholderStyle = () => {
-        if (dobInput.value === TEMPLATE) dobInput.classList.add("is-placeholder");
-        else dobInput.classList.remove("is-placeholder");
-      };
-
-      if (!dobInput.value) { dobInput.value = TEMPLATE; updatePlaceholderStyle(); }
+      if (!dobInput.value) { dobInput.value = TEMPLATE; dobInput.classList.add("is-placeholder"); }
       dobInput.inputMode = "numeric";
 
       const setCursor = (pos) => requestAnimationFrame(() => dobInput.setSelectionRange(pos, pos));
@@ -85,9 +74,7 @@ if (!window.formSubmitInitialized) {
       };
 
       dobInput.addEventListener("focus", () => {
-        if (dobInput.value === "" || dobInput.value === TEMPLATE) {
-          dobInput.value = TEMPLATE; updatePlaceholderStyle(); setCursor(0);
-        }
+        if (dobInput.value === TEMPLATE) setCursor(0);
       });
       dobInput.addEventListener("click", () => {
          const digits = getDigits();
@@ -95,33 +82,25 @@ if (!window.formSubmitInitialized) {
          setCursor(cursorMap[digits.length] ?? 0);
       });
       dobInput.addEventListener("keydown", (e) => {
-        const key = e.key; 
-        const digits = getDigits();
+        const key = e.key; const digits = getDigits();
         if (["ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
-        
-        if (key === "Backspace") {
-            e.preventDefault();
-            digits.pop();
-        } else if (/^\d$/.test(key) && digits.length < 8) {
+        if (key === "Backspace") { e.preventDefault(); digits.pop(); } 
+        else if (/^\d$/.test(key) && digits.length < 8) {
             e.preventDefault();
             if (digits.length === 0 && key > "3") digits.push("0", key);
             else if (digits.length === 2 && key > "1") digits.push("0", key);
             else digits.push(key);
-        } else if (!/^\d$/.test(key)) {
-            // Blokkeer andere toetsen behalve navigatie (boven afgehandeld)
-            // Maar laat events zoals Refresh (F5) wel door als dat geen modifier heeft
-            if(key.length === 1) e.preventDefault(); 
-        }
+        } else if (key.length === 1) e.preventDefault();
 
         dobInput.value = render(digits);
-        updatePlaceholderStyle();
+        dobInput.classList.toggle("is-placeholder", dobInput.value === TEMPLATE);
         const cursorMap = [0, 1, 5, 6, 10, 11, 12, 13];
         setCursor(cursorMap[digits.length] ?? 14);
         if (digits.length === 8) sessionStorage.setItem("dob_full", digits.join(""));
       });
     }
 
-    // Phone Validation
+    // Phone
     const phoneInput = document.getElementById("phone1");
     if (phoneInput && !phoneInput.dataset.bound) {
       phoneInput.dataset.bound = "true";
@@ -131,7 +110,7 @@ if (!window.formSubmitInitialized) {
       });
     }
 
-    // Postcode Lookup
+    // Postcode
     const pcInput = document.getElementById("postcode");
     if (pcInput && !pcInput.dataset.bound) {
       pcInput.dataset.bound = "true";
@@ -139,24 +118,20 @@ if (!window.formSubmitInitialized) {
         const val = pcInput.value.trim();
         if (!val) return;
         try {
-          const res = await fetch("https://coregflowuk.vercel.app/api/validateAddressUK.js", {
+          const res = await fetch("/api/validateAddressUK.js", {
              method: "POST", headers: { "Content-Type": "application/json" },
              body: JSON.stringify({ postcode: val })
           });
           const data = await res.json();
           if (data.valid && data.formatted) {
             pcInput.value = data.formatted; pcInput.classList.remove("error");
-          } else {
-            pcInput.classList.add("error");
-          }
+          } else { pcInput.classList.add("error"); }
         } catch(e) {}
       });
     }
   }
 
-  // -----------------------------------------------------------
-  // 3. Payload & API Helpers
-  // -----------------------------------------------------------
+  // 3. API
   async function getIpOnce() {
     let ip = sessionStorage.getItem("user_ip");
     if (ip) return ip;
@@ -183,7 +158,7 @@ if (!window.formSubmitInitialized) {
        dob = `${rawDigits.slice(4,8)}-${rawDigits.slice(2,4)}-${rawDigits.slice(0,2)}`;
     }
 
-    const payload = {
+    return {
       cid: campaign.cid, sid: campaign.sid,
       gender:     sessionStorage.getItem("gender")    || "",
       firstname:  sessionStorage.getItem("firstname") || "",
@@ -195,20 +170,11 @@ if (!window.formSubmitInitialized) {
       address2:   sessionStorage.getItem("address2")  || "",
       city:       sessionStorage.getItem("city")      || "",
       phone1:     sessionStorage.getItem("phone1")    || "",
-      t_id,
-      aff_id:   sessionStorage.getItem("aff_id")   || "unknown",
-      offer_id: sessionStorage.getItem("offer_id") || "unknown",
-      sub_id:   sessionStorage.getItem("sub_id")   || "unknown",
+      t_id, ip,
       f_1453_campagne_url: window.location.href,
-      f_17_ipaddress: ip,
       f_55_optindate: new Date().toISOString().split(".")[0] + "+0000",
       is_shortform: campaign.is_shortform || false,
     };
-
-    if (campaign.f_2014_coreg_answer) payload.f_2014_coreg_answer = campaign.f_2014_coreg_answer;
-    if (campaign.f_2575_coreg_answer_dropdown) payload.f_2575_coreg_answer_dropdown = campaign.f_2575_coreg_answer_dropdown;
-
-    return payload;
   }
 
   window.fetchLead = async function(payload) {
@@ -217,32 +183,26 @@ if (!window.formSubmitInitialized) {
     if (window.submittedCampaigns.has(key)) return { skipped: true };
 
     try {
-      const res = await fetch("https://coregflowuk.vercel.app/api/lead.js", {
+      // ✅ Relatieve URL
+      const res = await fetch("/api/lead.js", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
       window.submittedCampaigns.add(key);
-      const txt = await res.text();
-      return txt ? JSON.parse(txt) : {};
-    } catch (err) { return { success: false, error: err.message }; }
+      return await res.json();
+    } catch (err) { return { success: false }; }
   }
 
-  // -----------------------------------------------------------
-  // 4. Submit Handler Logic
-  // -----------------------------------------------------------
+  // 4. HANDLERS
   let submitting = false;
 
   async function handleShortForm(e) {
     const form = document.getElementById("lead-form");
     const btn = e.currentTarget;
 
-    // A. Basis Validatie
-    if (!form.checkValidity()) { 
-        // Laat de browser validatie zien, stop custom event niet (zodat browser bubbles werken)
-        return; 
-    }
+    // Validatie
+    if (!form.checkValidity()) return; 
     
-    // Custom Validatie (DOB)
     const dobEl = document.getElementById("dob");
     if (dobEl && dobEl.value.replace(/\D/g,"").length !== 8) {
        e.preventDefault(); e.stopPropagation();
@@ -250,33 +210,29 @@ if (!window.formSubmitInitialized) {
        return;
     }
 
-    // Als we hier zijn, is alles geldig -> Stop default submit & initFlow navigatie
-    e.preventDefault(); 
-    e.stopPropagation();
-
+    e.preventDefault(); e.stopPropagation();
     if (submitting) return;
 
-    // B. Data Opslaan
+    // Opslaan
     const genderEl = form.querySelector("input[name='gender']:checked");
     if (genderEl) sessionStorage.setItem("gender", genderEl.value);
     ["firstname", "lastname", "email"].forEach(id => {
        const el = document.getElementById(id);
        if (el) sessionStorage.setItem(id, el.value.trim());
     });
-    if (typeof getIpOnce === "function") getIpOnce();
+    getIpOnce();
 
-    // C. Slide-up Logic
+    // Slide-up
     const useSlideUp = form.dataset.sponsorSlideup === "true";
     const slideup = document.getElementById("sponsor-slideup");
 
     if (useSlideUp && slideup) {
       slideup.classList.add("is-visible");
       
-      // Bind slideup buttons (eenmalig)
       if (!slideup.dataset.bound) {
          slideup.dataset.bound = "true";
          
-         // YES
+         // YES CLICK
          const confirmBtn = document.getElementById("slideup-confirm");
          confirmBtn.addEventListener("click", async () => {
            confirmBtn.classList.add("is-loading");
@@ -285,11 +241,15 @@ if (!window.formSubmitInitialized) {
            submitting = true;
            
            sessionStorage.setItem("sponsorsAccepted", "true");
-           await sendUkSponsorLeads();
+           
+           // ⚡️ SPEED FIX: Fire & Forget Sponsors (Achtergrond)
+           sendUkSponsorLeads(); 
+           
+           // Wacht alleen op de hoofd-lead
            await finalizeUkShortForm();
          });
 
-         // NO
+         // NO CLICK
          document.getElementById("slideup-deny").addEventListener("click", async () => {
            slideup.classList.remove("is-visible");
            btn.innerHTML = "Please wait...";
@@ -300,7 +260,6 @@ if (!window.formSubmitInitialized) {
          });
       }
     } else {
-      // Direct doorsturen (fallback)
       submitting = true;
       btn.disabled = true;
       btn.innerHTML = "Please wait...";
@@ -310,15 +269,15 @@ if (!window.formSubmitInitialized) {
 
   async function sendUkSponsorLeads() {
     try {
-      const res = await fetch("https://coregflowuk.vercel.app/api/cosponsors.js");
+      // ✅ Relatieve URL
+      const res = await fetch("/api/cosponsors.js");
       const json = await res.json();
       if(Array.isArray(json.data)) {
-        Promise.allSettled(json.data.map(async s => {
-           // UK sponsors sturen we ook als leads door
-           // Pas CID/SID aan indien nodig per sponsor
+        // Verstuur parallel, wacht niet op resultaat
+        json.data.forEach(async s => {
            const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
-           return window.fetchLead(p);
-        }));
+           window.fetchLead(p);
+        });
       }
     } catch {}
   }
@@ -330,28 +289,21 @@ if (!window.formSubmitInitialized) {
     } catch (err) { console.error(err); }
 
     sessionStorage.setItem("shortFormCompleted", "true");
-    
-    // Trigger de navigatie naar de volgende slide
     document.dispatchEvent(new Event("shortFormSubmitted"));
   }
 
-  // -----------------------------------------------------------
-  // 5. BOOTSTRAP (Cruciaal voor timing)
-  // -----------------------------------------------------------
+  // BOOTSTRAP
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initFormLogic);
   } else {
-    // Als DOM al klaar is, direct uitvoeren
     initFormLogic();
   }
 
-  // Long Form Listener (voor latere stap)
   document.addEventListener("click", async e => {
     if (!e.target.matches("#submit-long-form")) return;
-    // ... bestaande long form logica ...
     e.preventDefault();
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
 
-  console.info("🎉 formSubmit loaded (UK Robust)");
+  console.info("🎉 formSubmit loaded (UK Fast)");
 }
