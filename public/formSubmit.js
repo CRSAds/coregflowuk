@@ -1,12 +1,14 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Optimized Speed)
+// ✅ formSubmit.js — UK Version (Absolute URLs & Speed)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
   window.formSubmitInitialized = true;
   window.submittedCampaigns = window.submittedCampaigns || new Set();
+  
+  // 👇 DEZE URL MOET NAAR JE VERCEL BACKEND WIJZEN
+  const API_BASE = "https://coregflowuk.vercel.app";
 
-  // --- HTML Template ---
   const SLIDEUP_TEMPLATE = `
     <div class="sponsor-slideup" id="sponsor-slideup">
       <h3 class="slideup-title">Almost done!</h3>
@@ -28,27 +30,22 @@ if (!window.formSubmitInitialized) {
     </div>
   `;
 
-  // 1. INIT
   function initFormLogic() {
     const form = document.getElementById("lead-form");
     if (!form) return;
 
-    // Params
     const urlParams = new URLSearchParams(window.location.search);
     ["t_id", "aff_id", "sub_id", "sub2", "offer_id"].forEach(key => {
       const val = urlParams.get(key);
       if (val) sessionStorage.setItem(key, val);
     });
 
-    // Inject Slide-up
     if (form.dataset.sponsorSlideup === "true" && !document.getElementById("sponsor-slideup")) {
       form.insertAdjacentHTML('beforeend', SLIDEUP_TEMPLATE);
     }
 
-    // Input Helpers
     setupInputLogic();
 
-    // Handler
     const btn = form.querySelector(".flow-next, button[type='submit']");
     if (btn) {
       btn.removeEventListener("click", handleShortForm, true);
@@ -56,7 +53,6 @@ if (!window.formSubmitInitialized) {
     }
   }
 
-  // 2. INPUT HELPERS
   function setupInputLogic() {
     // DOB
     const dobInput = document.getElementById("dob");
@@ -110,7 +106,7 @@ if (!window.formSubmitInitialized) {
       });
     }
 
-    // Postcode
+    // Postcode (Absolute URL!)
     const pcInput = document.getElementById("postcode");
     if (pcInput && !pcInput.dataset.bound) {
       pcInput.dataset.bound = "true";
@@ -118,7 +114,7 @@ if (!window.formSubmitInitialized) {
         const val = pcInput.value.trim();
         if (!val) return;
         try {
-          const res = await fetch("/api/validateAddressUK.js", {
+          const res = await fetch(`${API_BASE}/api/validateAddressUK.js`, {
              method: "POST", headers: { "Content-Type": "application/json" },
              body: JSON.stringify({ postcode: val })
           });
@@ -131,7 +127,6 @@ if (!window.formSubmitInitialized) {
     }
   }
 
-  // 3. API
   async function getIpOnce() {
     let ip = sessionStorage.getItem("user_ip");
     if (ip) return ip;
@@ -183,8 +178,8 @@ if (!window.formSubmitInitialized) {
     if (window.submittedCampaigns.has(key)) return { skipped: true };
 
     try {
-      // ✅ Relatieve URL
-      const res = await fetch("/api/lead.js", {
+      // ✅ Absolute URL!
+      const res = await fetch(`${API_BASE}/api/lead.js`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -193,14 +188,12 @@ if (!window.formSubmitInitialized) {
     } catch (err) { return { success: false }; }
   }
 
-  // 4. HANDLERS
   let submitting = false;
 
   async function handleShortForm(e) {
     const form = document.getElementById("lead-form");
     const btn = e.currentTarget;
 
-    // Validatie
     if (!form.checkValidity()) return; 
     
     const dobEl = document.getElementById("dob");
@@ -213,7 +206,6 @@ if (!window.formSubmitInitialized) {
     e.preventDefault(); e.stopPropagation();
     if (submitting) return;
 
-    // Opslaan
     const genderEl = form.querySelector("input[name='gender']:checked");
     if (genderEl) sessionStorage.setItem("gender", genderEl.value);
     ["firstname", "lastname", "email"].forEach(id => {
@@ -222,7 +214,6 @@ if (!window.formSubmitInitialized) {
     });
     getIpOnce();
 
-    // Slide-up
     const useSlideUp = form.dataset.sponsorSlideup === "true";
     const slideup = document.getElementById("sponsor-slideup");
 
@@ -232,7 +223,6 @@ if (!window.formSubmitInitialized) {
       if (!slideup.dataset.bound) {
          slideup.dataset.bound = "true";
          
-         // YES CLICK
          const confirmBtn = document.getElementById("slideup-confirm");
          confirmBtn.addEventListener("click", async () => {
            confirmBtn.classList.add("is-loading");
@@ -242,14 +232,12 @@ if (!window.formSubmitInitialized) {
            
            sessionStorage.setItem("sponsorsAccepted", "true");
            
-           // ⚡️ SPEED FIX: Fire & Forget Sponsors (Achtergrond)
+           // Fire & Forget (Achtergrond)
            sendUkSponsorLeads(); 
            
-           // Wacht alleen op de hoofd-lead
            await finalizeUkShortForm();
          });
 
-         // NO CLICK
          document.getElementById("slideup-deny").addEventListener("click", async () => {
            slideup.classList.remove("is-visible");
            btn.innerHTML = "Please wait...";
@@ -269,11 +257,10 @@ if (!window.formSubmitInitialized) {
 
   async function sendUkSponsorLeads() {
     try {
-      // ✅ Relatieve URL
-      const res = await fetch("/api/cosponsors.js");
+      // ✅ Absolute URL!
+      const res = await fetch(`${API_BASE}/api/cosponsors.js`);
       const json = await res.json();
       if(Array.isArray(json.data)) {
-        // Verstuur parallel, wacht niet op resultaat
         json.data.forEach(async s => {
            const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
            window.fetchLead(p);
@@ -292,7 +279,6 @@ if (!window.formSubmitInitialized) {
     document.dispatchEvent(new Event("shortFormSubmitted"));
   }
 
-  // BOOTSTRAP
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initFormLogic);
   } else {
@@ -305,5 +291,5 @@ if (!window.formSubmitInitialized) {
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
 
-  console.info("🎉 formSubmit loaded (UK Fast)");
+  console.info("🎉 formSubmit loaded (UK Absolute URLs)");
 }
