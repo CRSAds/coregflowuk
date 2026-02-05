@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ footer-loader.js — UK Version (Conflict Free)
+// ✅ footer-loader.js — UK Version (Styling Fix)
 // =============================================================
 
 (function () {
@@ -10,7 +10,6 @@
 
   // === 1. Setup & CSS Injectie ===
   function setup() {
-    // Unieke CSS voor deze loader (vermijdt conflict met cosponsors)
     if (!document.getElementById("fl-styles")) {
       const style = document.createElement("style");
       style.id = "fl-styles";
@@ -25,28 +24,35 @@
         #dynamic-footer .soft-link { background: none; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 4px 2px; color: inherit; }
         #dynamic-footer .soft-link img.icon { width: 16px; height: 16px; }
 
-        /* UNIEKE Popup Styling (.fl-popup ipv .footer-popup) */
+        /* Popup Styling */
         .fl-popup { 
           position: fixed; inset: 0; z-index: 999999; 
-          display: none; /* Standaard verborgen */
-          justify-content: center; align-items: center; 
+          display: none; justify-content: center; align-items: center; 
         }
         .fl-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
         .fl-content { 
           position: relative; background: #fff; padding: 40px; 
           width: min(94vw, 850px); max-height: 85vh; overflow-y: auto; 
           border-radius: 12px; z-index: 2; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
-          font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.7; color: #333;
+          font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; color: #333;
         }
         .fl-close { position: absolute; top: 10px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: #666; }
         .fl-close:hover { color: #000; }
+        
+        /* Content Reset voor CMS data */
+        .fl-content h1, .fl-content h2, .fl-content h3, .fl-content h4 {
+           font-size: 16px; font-weight: 700; margin: 1.2em 0 0.5em 0; color: #111; line-height: 1.4;
+        }
+        .fl-content h1:first-child, .fl-content h2:first-child { margin-top: 0; }
+        .fl-content p { margin-bottom: 1em; }
+        .fl-content ul, .fl-content ol { padding-left: 20px; margin-bottom: 1em; }
+        .fl-content li { margin-bottom: 4px; }
         
         body.fl-locked { overflow: hidden !important; }
       `;
       document.head.appendChild(style);
     }
 
-    // Popup HTML
     if (!document.getElementById("fl-popup")) {
       const div = document.createElement("div");
       div.innerHTML = `
@@ -61,7 +67,6 @@
       document.body.appendChild(div.firstElementChild);
     }
 
-    // Bruggetje voor consent-module (indien nodig)
     if (!document.getElementById("actievoorwaarden-wrapper")) {
       const w = document.createElement("div");
       w.id = "actievoorwaarden-wrapper";
@@ -99,9 +104,10 @@
 
       if(footerData) {
         renderFooter();
-        // Vul de brug
         const bridge = document.getElementById("actievoorwaarden");
-        if(bridge) bridge.innerHTML = footerData.actievoorwaarden || footerData.terms_content;
+        // Gebruik actievoorwaarden als beschikbaar, anders terms_content
+        const content = footerData.actievoorwaarden || footerData.terms_content;
+        if(bridge && content) bridge.innerHTML = content;
       }
     } catch(e) { console.error(e); }
   }
@@ -132,7 +138,6 @@
 
   // === 3. Event Listeners ===
   document.addEventListener("click", (e) => {
-    // Footer Buttons
     if (e.target.closest("#btn-terms")) {
       e.preventDefault();
       showPopup(footerData?.terms_content || "No terms loaded.");
@@ -141,13 +146,11 @@
       e.preventDefault();
       showPopup(footerData?.privacy_content || "No privacy loaded.");
     }
-    // Close
     if (e.target.closest(".fl-close") || e.target.classList.contains("fl-overlay")) {
       hidePopup();
     }
   });
 
-  // Boot
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => { setup(); loadData(); });
   } else {
