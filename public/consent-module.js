@@ -1,10 +1,10 @@
 // =============================================================
-// ✅ consent-module.js — UK Version (Styling Fix)
+// ✅ consent-module.js — UK Version (Readable Text Fix)
 // =============================================================
 
 (function () {
 
-  // 1. CSS Injectie (Nu met reset voor CMS content)
+  // 1. CSS Injectie (Met agressieve reset voor leesbaarheid)
   function injectStyles() {
     if (document.getElementById("cm-styles")) return;
     const style = document.createElement("style");
@@ -26,27 +26,46 @@
         display: flex; justify-content: space-between; align-items: center;
         background: #fff;
       }
-      .pb-title { margin: 0; font-size: 16px; font-weight: 700; color: #111; font-family: 'Inter', sans-serif; }
+      .pb-title { margin: 0; font-size: 16px; font-weight: 700; color: #111; font-family: 'Inter', sans-serif; text-transform: none; }
       .pb-close {
         background: none; border: none; font-size: 24px; cursor: pointer; color: #888;
         display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
       }
-      .pb-close:hover { color: #000; background: #f5f5f5; border-radius: 50%; }
       
-      /* Content Styling & Resets */
+      /* --- Content Styling & Reset --- */
       .pb-body { 
-        padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.6; 
-        color: #333; font-family: 'Inter', sans-serif; 
+        padding: 20px; overflow-y: auto; color: #333; font-family: 'Inter', sans-serif; 
+        text-align: left; /* Zorg dat tekst links lijnt */
       }
-      /* Zorg dat koppen uit CMS niet gigantisch zijn */
-      .pb-body h1, .pb-body h2, .pb-body h3, .pb-body h4 {
-        font-size: 16px; font-weight: 700; margin: 1.2em 0 0.5em 0; color: #111; line-height: 1.4;
+      
+      /* Forceer alles naar normaal leesbaar formaat */
+      .pb-body * {
+        text-transform: none !important; /* GEEN HOOFDLETTERS */
+        max-width: 100%;
       }
-      .pb-body h1:first-child, .pb-body h2:first-child { margin-top: 0; }
-      .pb-body p { margin-bottom: 1em; font-weight: 400; }
-      .pb-body ul, .pb-body ol { padding-left: 20px; margin-bottom: 1em; }
-      .pb-body li { margin-bottom: 4px; }
-      .pb-body strong, .pb-body b { font-weight: 600; }
+      
+      /* Reset koppen (h1, h2, etc.) naar normaal formaat */
+      .pb-body h1, .pb-body h2, .pb-body h3, .pb-body h4, .pb-body h5 {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        margin: 15px 0 8px 0 !important;
+        color: #111 !important;
+        line-height: 1.4 !important;
+        text-transform: none !important;
+      }
+      .pb-body h1:first-child, .pb-body h2:first-child { margin-top: 0 !important; }
+
+      /* Reset paragrafen */
+      .pb-body p, .pb-body li, .pb-body span, .pb-body div {
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+        margin-bottom: 10px !important;
+        color: #444 !important;
+        font-weight: 400 !important;
+        text-transform: none !important;
+      }
+      .pb-body strong, .pb-body b { font-weight: 700 !important; color: #000 !important; }
+      .pb-body ul, .pb-body ol { padding-left: 20px !important; margin-bottom: 10px !important; }
     `;
     document.head.appendChild(style);
   }
@@ -130,7 +149,6 @@
     }
   });
 
-  // Boot
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initSponsorConsent);
   } else {
