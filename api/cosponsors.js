@@ -3,62 +3,58 @@ import { fetchWithRetry } from "./utils/fetchDirectus.js";
 export const config = { runtime: "nodejs" };
 
 export default async function handler(req, res) {
-  // --- CORS headers ---
+  // 1. CORS & Cache Setup
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // Cache iets korter zetten (10 min) zodat je wijzigingen sneller ziet
+  res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate");
+
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // ✅ Edge caching (1 uur)
-  res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate");
-
   try {
-    // 1. Controleer Environment Variables
+    // 2. Veiligheidscheck
     if (!process.env.DIRECTUS_URL || !process.env.DIRECTUS_TOKEN) {
-      throw new Error("❌ Environment Variables ontbreken in Vercel.");
+      throw new Error("❌ Environment Variables DIRECTUS_URL of DIRECTUS_TOKEN ontbreken in Vercel.");
     }
 
-    // 2. Directus URL Opbouwen (volgens NL schema)
-    // - Collectie: co_sponsors
-    // - Filter: is_live = true
-    // - Filter: Country = UK of NULL
+    // 3. Data ophalen (STRICT UK)
+    // We filteren nu EXPLICIT op country = 'UK'.
+    // Sponsors zonder landcode (null) of met 'NL' worden hiermee genegeerd.
     const url = `${process.env.DIRECTUS_URL}/items/co_sponsors`
       + `?filter[is_live][_eq]=true`
-      + `&filter[_or][0][country][_null]=true`
-      + `&filter[_or][1][country][_eq]=UK`
+      + `&filter[country][_eq]=UK`
       + `&fields=title,description,logo,address,privacy_url,terms_url,cid,sid`
       + `&sort=title`;
 
-    // 3. Fetch Data
     const json = await fetchWithRetry(url, {
       headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` },
     });
 
-    // 4. Data Mappen (Database Veldnamen -> Frontend Veldnamen)
+    // 4. Data Transformatie
     const data = (json.data || []).map((s) => {
       // Logo URL bouwen
       let logoUrl = null;
       if (s.logo) {
-        // We gaan ervan uit dat s.logo direct de UUID is (net als in NL code)
-        // Als het een object is, pakken we s.logo.id
+        // Directus geeft soms een object, soms een ID string
         const logoId = typeof s.logo === 'object' ? s.logo.id : s.logo;
         const baseUrl = "https://cms.core.909play.com"; 
         logoUrl = `${baseUrl}/assets/${logoId}`;
       }
 
       return {
-        name: s.title || "",           // DB 'title' -> Frontend 'name'
+        name: s.title || "",
         description: s.description || "",
         address: s.address || "",
-        url_privacy: s.privacy_url || "#", // DB 'privacy_url' -> Frontend 'url_privacy'
-        url_terms: s.terms_url || "#",     // DB 'terms_url' -> Frontend 'url_terms'
+        url_privacy: s.privacy_url || "#",
+        url_terms: s.terms_url || "#",
         logo: logoUrl,
         cid: s.cid || "",
         sid: s.sid || ""
       };
     });
 
-    console.log(`✅ ${data.length} UK co-sponsors geladen`);
+    console.log(`✅ ${data.length} UK-only co-sponsors geladen`);
     res.status(200).json({ data });
 
   } catch (err) {
