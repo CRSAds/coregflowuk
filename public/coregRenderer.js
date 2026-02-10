@@ -112,6 +112,7 @@ function renderCampaignBlock(campaign, steps) {
   const style = campaign.ui_style?.toLowerCase() || "buttons";
   const visible = steps && campaign.step > 1 ? "none" : "block";
   const isFinal = campaign.isFinal ? "final-coreg" : "";
+  const displayTitle = campaign.title_new || campaign.title || "";
 
   // --- NEW: TEXT INPUT (Supports 'text_input' AND 'answerfield') ---
   if (style === "text_input" || style === "answerfield") {
