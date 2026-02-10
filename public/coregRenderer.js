@@ -120,8 +120,8 @@ function renderCampaignBlock(campaign, steps) {
       <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
            data-cid="${campaign.cid}" data-sid="${campaign.sid}"
            style="display:${visible}">
-        <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title}">
-        <h3 class="coreg-title">${campaign.title}</h3>
+        <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title_new || campaign.title}">
+        <h3 class="coreg-title">${campaign.title_new || campaign.title}</h3>
         <p class="coreg-description">${campaign.description || ""}</p>
 
         <div class="coreg-input-wrapper" style="margin-bottom: 15px;">
@@ -149,8 +149,8 @@ function renderCampaignBlock(campaign, steps) {
       <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
            data-cid="${campaign.cid}" data-sid="${campaign.sid}"
            style="display:${visible}">
-        <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title}">
-        <h3 class="coreg-title">${campaign.title}</h3>
+        <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title_new || campaign.title}">
+        <h3 class="coreg-title">${campaign.title_new || campaign.title}</h3>
         <p class="coreg-description">${campaign.description || ""}</p>
 
         <select class="coreg-dropdown" data-campaign="${campaign.id}" data-cid="${campaign.cid}" data-sid="${campaign.sid}">
@@ -172,8 +172,8 @@ function renderCampaignBlock(campaign, steps) {
     <div class="coreg-section ${isFinal}" id="campaign-${campaign.id}"
          data-cid="${campaign.cid}" data-sid="${campaign.sid}"
          style="display:${visible}">
-      <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title}">
-      <h3 class="coreg-title">${campaign.title}</h3>
+      <img src="${getImageUrl(campaign.image)}" class="coreg-image" alt="${campaign.title_new || campaign.title}">
+      <h3 class="coreg-title">${campaign.title_new || campaign.title}</h3>
       <p class="coreg-description">${campaign.description || ""}</p>
 
       <div class="coreg-answers">
