@@ -432,9 +432,14 @@ async function initCoregFlow() {
         const isNegative = btn.classList.contains("btn-skip") || answer === "no";
 
         if (isNegative) {
-          const idx = sections.indexOf(section);
-          let j = idx + 1;
-          while (j < sections.length && sections[j].dataset.cid == camp.cid) j++;
+        // Verbeterde Skip-logica voor multistep (3+ stappen)
+        const idx = sections.indexOf(section);
+        let j = idx + 1;
+        
+        // Blijf stappen overslaan zolang het volgende block hetzelfde Campaign ID (cid) heeft
+        while (j < sections.length && sections[j].dataset.cid == camp.cid) {
+          j++;
+        }
           section.style.display = "none";
           if (j < sections.length) {
             sections[j].style.display = "block";
