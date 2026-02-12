@@ -24,7 +24,7 @@
         background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
       }
       .footer-content {
-        position: relative; background: #fff; width: 90%; max-width: 500px;
+        position: relative; background: #fff; width: 90%; max-width: 700px;
         border-radius: 16px; padding: 24px; z-index: 10; max-height: 85vh;
         display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
       }
