@@ -112,8 +112,7 @@
             <div class="cosponsor-desc">${s.description || ""}</div>
             <div class="cosponsor-links">
               ${s.url_privacy ? `<a href="${s.url_privacy}" target="_blank">Privacy Policy</a>` : ""}
-              ${s.url_terms ? `<a href="${s.url_terms}" target="_blank">Terms & Conditions</a>` : ""}
-            </div>
+              </div>
           </div>
         </div>
       `;
