@@ -432,22 +432,27 @@ async function initCoregFlow() {
         const isNegative = btn.classList.contains("btn-skip") || answer === "no";
 
         if (isNegative) {
-        // Verbeterde Skip-logica voor multistep (3+ stappen)
-        const idx = sections.indexOf(section);
-        let j = idx + 1;
-        
-        // Blijf stappen overslaan zolang het volgende block hetzelfde Campaign ID (cid) heeft
-        while (j < sections.length && sections[j].dataset.cid == camp.cid) {
-          j++;
+      // 1. Bepaal waar we nu zijn
+      const idx = sections.indexOf(section);
+      let j = idx;
+      
+      // 2. Loop door ALLE secties van deze campagne en zet ze op 'none'
+      // We beginnen bij de huidige index en gaan vooruit zolang het CID hetzelfde is
+      while (j < sections.length && sections[j].dataset.cid == camp.cid) {
+        sections[j].style.display = "none";
+        j++;
+      }
+      
+      // 3. Nu we alle stappen van campagne X hebben verborgen, 
+      // tonen we de eerste stap van de VOLGENDE campagne (j)
+      if (j < sections.length) {
+        sections[j].style.display = "block";
+        updateProgressBar(j);
+        forceScrollTop();
+        } else {
+          // Geen volgende campagne meer? Dan afsluiten.
+          handleFinalCoreg();
         }
-          section.style.display = "none";
-          if (j < sections.length) {
-            sections[j].style.display = "block";
-            updateProgressBar(j);
-            forceScrollTop();
-          } else {
-            handleFinalCoreg();
-          }
         } else {
           const answerValue = { answer_value: answer, cid: btn.dataset.cid, sid: btn.dataset.sid };
           await handleAnswer(camp, answerValue, section);
