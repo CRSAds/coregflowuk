@@ -375,6 +375,27 @@ async function initCoregFlow() {
   // --- Event Handlers ---
   sections.forEach(section => {
     
+    // Hulpoplossing: Skip de gehele campagne flow
+    const skipCampaign = (currentSection, campaignId) => {
+      const idx = sections.indexOf(currentSection);
+      let j = idx;
+      
+      // Verberg alle stappen van de huidige campagne (vanaf dit punt en verder)
+      while (j < sections.length && sections[j].dataset.cid == campaignId) {
+        sections[j].style.display = "none";
+        j++;
+      }
+      
+      // Toon de volgende beschikbare campagne
+      if (j < sections.length) {
+        sections[j].style.display = "block";
+        updateProgressBar(j);
+        forceScrollTop();
+      } else {
+        handleFinalCoreg();
+      }
+    };
+
     // 1. Dropdown
     const dropdown = section.querySelector(".coreg-dropdown");
     if (dropdown) {
@@ -415,16 +436,17 @@ async function initCoregFlow() {
       });
     }
 
-    // 3. Skip Link
+    // 3. Skip Link (AANGEPAST: gebruikt nu ook skipCampaign)
     const skip = section.querySelector(".skip-link");
     if (skip) {
       skip.addEventListener("click", e => {
         e.preventDefault();
-        showNextSection(section);
+        const camp = campaigns.find(c => c.id == skip.dataset.campaign);
+        skipCampaign(section, camp.cid);
       });
     }
 
-    // 4. Buttons
+    // 4. Buttons (AANGEPAST: geoptimaliseerde skip logica)
     section.querySelectorAll(".btn-answer, .btn-skip").forEach(btn => {
       btn.addEventListener("click", async () => {
         const camp = campaigns.find(c => c.id == btn.dataset.campaign);
@@ -432,27 +454,7 @@ async function initCoregFlow() {
         const isNegative = btn.classList.contains("btn-skip") || answer === "no";
 
         if (isNegative) {
-      // 1. Bepaal waar we nu zijn
-      const idx = sections.indexOf(section);
-      let j = idx;
-      
-      // 2. Loop door ALLE secties van deze campagne en zet ze op 'none'
-      // We beginnen bij de huidige index en gaan vooruit zolang het CID hetzelfde is
-      while (j < sections.length && sections[j].dataset.cid == camp.cid) {
-        sections[j].style.display = "none";
-        j++;
-      }
-      
-      // 3. Nu we alle stappen van campagne X hebben verborgen, 
-      // tonen we de eerste stap van de VOLGENDE campagne (j)
-      if (j < sections.length) {
-        sections[j].style.display = "block";
-        updateProgressBar(j);
-        forceScrollTop();
-        } else {
-          // Geen volgende campagne meer? Dan afsluiten.
-          handleFinalCoreg();
-        }
+          skipCampaign(section, camp.cid);
         } else {
           const answerValue = { answer_value: answer, cid: btn.dataset.cid, sid: btn.dataset.sid };
           await handleAnswer(camp, answerValue, section);
