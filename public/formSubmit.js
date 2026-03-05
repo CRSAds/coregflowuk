@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Full Restoration & Scope Fix)
+// ✅ formSubmit.js — UK Version (Definitieve Full Restoration)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
@@ -29,6 +29,37 @@ if (!window.formSubmitInitialized) {
       </div>
     </div>
   `;
+
+  // --- GLOBAL FUNCTIONS (Buiten handleShortForm scope voor bereikbaarheid) ---
+
+  async function sendUkSponsorLeads() {
+    console.log("📡 UK Cosponsors ophalen...");
+    try {
+      const res = await fetch(`${API_BASE}/api/cosponsors.js`);
+      const json = await res.json();
+      if(Array.isArray(json.data) && json.data.length > 0) {
+        console.log(`🤝 ${json.data.length} UK sponsors gevonden.`);
+        // Wacht tot alle cosponsor calls klaar zijn
+        await Promise.allSettled(json.data.map(async s => {
+            const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
+            return window.fetchLead(p);
+        }));
+      } else {
+        console.warn("⚠️ Geen UK sponsors gevonden.");
+      }
+    } catch (err) { console.error("❌ Cosponsor Error:", err); }
+  }
+
+  async function finalizeUkShortForm() {
+    try {
+      console.log("🚀 Hoofdlead (5743) versturen...");
+      const ukBasePayload = await window.buildPayload({ cid: "5743", sid: "34", is_shortform: true });
+      await window.fetchLead(ukBasePayload);
+    } catch (err) { console.error(err); }
+
+    sessionStorage.setItem("shortFormCompleted", "true");
+    document.dispatchEvent(new Event("shortFormSubmitted"));
+  }
 
   // 1. INIT
   function initFormLogic() {
@@ -110,8 +141,8 @@ if (!window.formSubmitInitialized) {
         if (!val) return;
         try {
           const res = await fetch(`${API_BASE}/api/validateAddressUK.js`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ postcode: val })
+             method: "POST", headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ postcode: val })
           });
           const data = await res.json();
           if (data.valid && data.formatted) {
@@ -151,16 +182,16 @@ if (!window.formSubmitInitialized) {
 
     const payload = {
       cid: campaign.cid, sid: campaign.sid,
-      gender:      sessionStorage.getItem("gender")    || "",
-      firstname:   sessionStorage.getItem("firstname") || "",
-      lastname:    sessionStorage.getItem("lastname")  || "",
-      email:       sessionStorage.getItem("email")      || "",
-      dob:         dob,
-      postcode:    sessionStorage.getItem("postcode")  || "",
-      address1:    sessionStorage.getItem("address1")  || "",
-      address2:    sessionStorage.getItem("address2")  || "",
-      city:        sessionStorage.getItem("city")      || "",
-      phone1:      sessionStorage.getItem("phone1")    || "",
+      gender:     sessionStorage.getItem("gender")    || "",
+      firstname:  sessionStorage.getItem("firstname") || "",
+      lastname:   sessionStorage.getItem("lastname")  || "",
+      email:      sessionStorage.getItem("email")     || "",
+      dob:        dob,
+      postcode:   sessionStorage.getItem("postcode")  || "",
+      address1:   sessionStorage.getItem("address1")  || "",
+      address2:   sessionStorage.getItem("address2")  || "",
+      city:       sessionStorage.getItem("city")      || "",
+      phone1:     sessionStorage.getItem("phone1")    || "",
       t_id, ip,
       f_1453_campagne_url: window.location.href,
       f_55_optindate: new Date().toISOString().split(".")[0] + "+0000",
@@ -188,37 +219,6 @@ if (!window.formSubmitInitialized) {
     } catch (err) { return { success: false }; }
   }
 
-  // --- CORE LOGIC FUNCTIONS (OUT OF SCOPE FOR BUTTON ACCESS) ---
-
-  async function sendUkSponsorLeads() {
-    console.log("📡 UK Cosponsors versturen...");
-    try {
-      const res = await fetch(`${API_BASE}/api/cosponsors.js`);
-      const json = await res.json();
-      if(Array.isArray(json.data) && json.data.length > 0) {
-        console.log(`🤝 ${json.data.length} UK sponsors gevonden.`);
-        // We gebruiken Promise.allSettled om te wachten tot alle calls klaar zijn
-        await Promise.allSettled(json.data.map(async s => {
-            const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
-            return window.fetchLead(p);
-        }));
-      } else {
-        console.warn("⚠️ Geen actieve UK sponsors gevonden.");
-      }
-    } catch (err) { console.error("❌ Cosponsor Error:", err); }
-  }
-
-  async function finalizeUkShortForm() {
-    try {
-      console.log("🚀 Hoofdlead (5743) versturen...");
-      const ukBasePayload = await window.buildPayload({ cid: "5743", sid: "34", is_shortform: true });
-      await window.fetchLead(ukBasePayload);
-    } catch (err) { console.error("❌ Fout bij hoofdlead:", err); }
-
-    sessionStorage.setItem("shortFormCompleted", "true");
-    document.dispatchEvent(new Event("shortFormSubmitted"));
-  }
-
   // 4. HANDLERS
   let submitting = false;
 
@@ -238,7 +238,7 @@ if (!window.formSubmitInitialized) {
     e.preventDefault(); e.stopPropagation();
     if (submitting) return;
 
-    // Save Data naar sessionStorage
+    // Save Data
     const genderEl = form.querySelector("input[name='gender']:checked");
     if (genderEl) sessionStorage.setItem("gender", genderEl.value);
     ["firstname", "lastname", "email"].forEach(id => {
@@ -322,7 +322,7 @@ if (!window.formSubmitInitialized) {
       
       sessionStorage.setItem("sponsorsAccepted", "true");
       
-      // Visuele feedback op de knop zelf
+      // Visuele feedback
       e.target.innerText = "Please wait...";
       e.target.style.opacity = "0.7";
       e.target.style.pointerEvents = "none";
@@ -334,7 +334,6 @@ if (!window.formSubmitInitialized) {
 
     if (e.target.id === "open-sponsor-popup") {
       e.preventDefault();
-      // Popup logica zit in cosponsors.js
     }
   });
 
