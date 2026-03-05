@@ -348,5 +348,26 @@ if (!window.formSubmitInitialized) {
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
 
+  // -----------------------------------------------------------
+  // 🔹 NEW: Sponsor Agreement (UK Inline Version)
+  // Deze buttons staan los in de HTML op de Swipe Pages pagina
+  // -----------------------------------------------------------
+  document.addEventListener("click", (e) => {
+    // 1. De "Accept" button
+    if (e.target.id === "accept-sponsors-btn") {
+      sessionStorage.setItem("sponsorsAccepted", "true");
+      e.target.innerText = "✓ Accepted";
+      e.target.style.opacity = "0.7";
+      e.target.style.pointerEvents = "none";
+      console.log("✅ UK Sponsors accepted via inline button");
+    }
+
+    // 2. De link naar de popup (wordt verder afgehandeld door cosponsors.js)
+    if (e.target.id === "open-sponsor-popup") {
+      e.preventDefault();
+      // De popup-opener zit al in cosponsors.js / consent-module.js
+    }
+  });
+
   console.info("🎉 formSubmit loaded (UK Full Restore)");
 }
