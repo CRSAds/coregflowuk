@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Full Restoration & Inline Fix)
+// ✅ formSubmit.js — UK Version (Full Restoration & Scope Fix)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
@@ -188,31 +188,32 @@ if (!window.formSubmitInitialized) {
     } catch (err) { return { success: false }; }
   }
 
-  // --- GLOBAL HELPERS (Buiten handleShortForm scope) ---
+  // --- CORE LOGIC FUNCTIONS (OUT OF SCOPE FOR BUTTON ACCESS) ---
 
   async function sendUkSponsorLeads() {
-    console.log("📡 UK Cosponsors ophalen...");
+    console.log("📡 UK Cosponsors versturen...");
     try {
       const res = await fetch(`${API_BASE}/api/cosponsors.js`);
       const json = await res.json();
       if(Array.isArray(json.data) && json.data.length > 0) {
         console.log(`🤝 ${json.data.length} UK sponsors gevonden.`);
-        json.data.forEach(async s => {
+        // We gebruiken Promise.allSettled om te wachten tot alle calls klaar zijn
+        await Promise.allSettled(json.data.map(async s => {
             const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
-            window.fetchLead(p);
-        });
+            return window.fetchLead(p);
+        }));
       } else {
-        console.warn("⚠️ Geen UK sponsors gevonden.");
+        console.warn("⚠️ Geen actieve UK sponsors gevonden.");
       }
     } catch (err) { console.error("❌ Cosponsor Error:", err); }
   }
 
   async function finalizeUkShortForm() {
     try {
-      console.log("🚀 Hoofdlead versturen...");
+      console.log("🚀 Hoofdlead (5743) versturen...");
       const ukBasePayload = await window.buildPayload({ cid: "5743", sid: "34", is_shortform: true });
       await window.fetchLead(ukBasePayload);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("❌ Fout bij hoofdlead:", err); }
 
     sessionStorage.setItem("shortFormCompleted", "true");
     document.dispatchEvent(new Event("shortFormSubmitted"));
@@ -237,7 +238,7 @@ if (!window.formSubmitInitialized) {
     e.preventDefault(); e.stopPropagation();
     if (submitting) return;
 
-    // Save Data
+    // Save Data naar sessionStorage
     const genderEl = form.querySelector("input[name='gender']:checked");
     if (genderEl) sessionStorage.setItem("gender", genderEl.value);
     ["firstname", "lastname", "email"].forEach(id => {
@@ -253,20 +254,17 @@ if (!window.formSubmitInitialized) {
       slideup.classList.add("is-visible");
       if (!slideup.dataset.bound) {
          slideup.dataset.bound = "true";
-         const confirmBtn = document.getElementById("slideup-confirm");
-         confirmBtn.addEventListener("click", async () => {
-           confirmBtn.classList.add("is-loading");
-           const span = confirmBtn.querySelector("span");
-           if(span) span.innerText = "Please wait...";
+         document.getElementById("slideup-confirm").addEventListener("click", async (ev) => {
+           const cb = ev.currentTarget;
+           cb.classList.add("is-loading");
            submitting = true;
            sessionStorage.setItem("sponsorsAccepted", "true");
-           sendUkSponsorLeads();
+           await sendUkSponsorLeads();
            await finalizeUkShortForm();
          });
 
          document.getElementById("slideup-deny").addEventListener("click", async () => {
            slideup.classList.remove("is-visible");
-           btn.innerHTML = "Please wait...";
            submitting = true;
            sessionStorage.setItem("sponsorsAccepted", "false");
            await finalizeUkShortForm();
@@ -274,7 +272,6 @@ if (!window.formSubmitInitialized) {
       }
     } else {
       submitting = true;
-      btn.disabled = true;
       btn.innerHTML = "Please wait...";
       await finalizeUkShortForm();
     }
@@ -287,7 +284,7 @@ if (!window.formSubmitInitialized) {
     initFormLogic();
   }
 
-  // 6. LONG FORM HANDLER
+  // 6. LONG FORM HANDLER (Met coregs uit slides)
   document.addEventListener("click", async e => {
     if (!e.target.matches("#submit-long-form")) return;
     e.preventDefault();
@@ -303,41 +300,43 @@ if (!window.formSubmitInitialized) {
     if (ad2) sessionStorage.setItem("address2", ad2.value.trim());
 
     const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
-    (async () => {
-      await Promise.allSettled(pending.map(async camp => {
-          const ans = sessionStorage.getItem(`f_2014_coreg_answer_${camp.cid}`);
-          const drop = sessionStorage.getItem(`f_2575_coreg_answer_dropdown_${camp.cid}`);
-          const payload = await window.buildPayload({
-            cid: camp.cid, sid: camp.sid, is_shortform: false,
-            f_2014_coreg_answer: ans || undefined,
-            f_2575_coreg_answer_dropdown: drop || undefined
-          });
-          return window.fetchLead(payload);
-      }));
-      sessionStorage.removeItem("longFormCampaigns");
-    })();
+    await Promise.allSettled(pending.map(async camp => {
+        const ans = sessionStorage.getItem(`f_2014_coreg_answer_${camp.cid}`);
+        const drop = sessionStorage.getItem(`f_2575_coreg_answer_dropdown_${camp.cid}`);
+        const payload = await window.buildPayload({
+          cid: camp.cid, sid: camp.sid, is_shortform: false,
+          f_2014_coreg_answer: ans || undefined,
+          f_2575_coreg_answer_dropdown: drop || undefined
+        });
+        return window.fetchLead(payload);
+    }));
+    sessionStorage.removeItem("longFormCampaigns");
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
 
-  // 7. INLINE BUTTON HANDLER (Voor Swipe Pages)
+  // 7. 🎯 INLINE BUTTON HANDLER (Voor Swipe Pages HTML blok)
   document.addEventListener("click", async (e) => {
     if (e.target.id === "accept-sponsors-btn") {
       e.preventDefault();
-      console.log("✅ UK Sponsors accepted via inline button");
+      console.log("✅ UK Sponsors accepted via INLINE button");
+      
       sessionStorage.setItem("sponsorsAccepted", "true");
       
+      // Visuele feedback op de knop zelf
       e.target.innerText = "Please wait...";
       e.target.style.opacity = "0.7";
       e.target.style.pointerEvents = "none";
 
+      // Belangrijk: we wachten hier op de uitvoering
       await sendUkSponsorLeads();
       await finalizeUkShortForm();
     }
 
     if (e.target.id === "open-sponsor-popup") {
       e.preventDefault();
+      // Popup logica zit in cosponsors.js
     }
   });
 
-  console.info("🎉 formSubmit loaded (UK Full Restore)");
+  console.info("🎉 formSubmit loaded (UK Scope Fix Applied)");
 }
