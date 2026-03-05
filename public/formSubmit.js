@@ -1,5 +1,5 @@
 // =============================================================
-// ✅ formSubmit.js — UK Version (Full Restoration)
+// ✅ formSubmit.js — UK Version (Full Restoration & Inline Fix)
 // =============================================================
 
 if (!window.formSubmitInitialized) {
@@ -56,7 +56,6 @@ if (!window.formSubmitInitialized) {
 
   // 2. INPUT HELPERS
   function setupInputLogic() {
-    // DOB
     const dobInput = document.getElementById("dob");
     if (dobInput && !dobInput.dataset.bound) {
       dobInput.dataset.bound = "true";
@@ -94,7 +93,6 @@ if (!window.formSubmitInitialized) {
       });
     }
 
-    // Phone
     const phoneInput = document.getElementById("phone1");
     if (phoneInput && !phoneInput.dataset.bound) {
       phoneInput.dataset.bound = "true";
@@ -104,7 +102,6 @@ if (!window.formSubmitInitialized) {
       });
     }
 
-    // Postcode
     const pcInput = document.getElementById("postcode");
     if (pcInput && !pcInput.dataset.bound) {
       pcInput.dataset.bound = "true";
@@ -113,8 +110,8 @@ if (!window.formSubmitInitialized) {
         if (!val) return;
         try {
           const res = await fetch(`${API_BASE}/api/validateAddressUK.js`, {
-             method: "POST", headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ postcode: val })
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ postcode: val })
           });
           const data = await res.json();
           if (data.valid && data.formatted) {
@@ -152,26 +149,24 @@ if (!window.formSubmitInitialized) {
        dob = `${rawDigits.slice(4,8)}-${rawDigits.slice(2,4)}-${rawDigits.slice(0,2)}`;
     }
 
-    // Base Payload
     const payload = {
       cid: campaign.cid, sid: campaign.sid,
-      gender:     sessionStorage.getItem("gender")    || "",
-      firstname:  sessionStorage.getItem("firstname") || "",
-      lastname:   sessionStorage.getItem("lastname")  || "",
-      email:      sessionStorage.getItem("email")     || "",
-      dob:        dob,
-      postcode:   sessionStorage.getItem("postcode")  || "",
-      address1:   sessionStorage.getItem("address1")  || "",
-      address2:   sessionStorage.getItem("address2")  || "",
-      city:       sessionStorage.getItem("city")      || "",
-      phone1:     sessionStorage.getItem("phone1")    || "",
+      gender:      sessionStorage.getItem("gender")    || "",
+      firstname:   sessionStorage.getItem("firstname") || "",
+      lastname:    sessionStorage.getItem("lastname")  || "",
+      email:       sessionStorage.getItem("email")      || "",
+      dob:         dob,
+      postcode:    sessionStorage.getItem("postcode")  || "",
+      address1:    sessionStorage.getItem("address1")  || "",
+      address2:    sessionStorage.getItem("address2")  || "",
+      city:        sessionStorage.getItem("city")      || "",
+      phone1:      sessionStorage.getItem("phone1")    || "",
       t_id, ip,
       f_1453_campagne_url: window.location.href,
       f_55_optindate: new Date().toISOString().split(".")[0] + "+0000",
       is_shortform: campaign.is_shortform || false,
     };
 
-    // Voeg coreg antwoorden toe als ze in het campaign object zitten
     if (campaign.f_2014_coreg_answer) payload.f_2014_coreg_answer = campaign.f_2014_coreg_answer;
     if (campaign.f_2575_coreg_answer_dropdown) payload.f_2575_coreg_answer_dropdown = campaign.f_2575_coreg_answer_dropdown;
 
@@ -191,6 +186,36 @@ if (!window.formSubmitInitialized) {
       window.submittedCampaigns.add(key);
       return await res.json();
     } catch (err) { return { success: false }; }
+  }
+
+  // --- GLOBAL HELPERS (Buiten handleShortForm scope) ---
+
+  async function sendUkSponsorLeads() {
+    console.log("📡 UK Cosponsors ophalen...");
+    try {
+      const res = await fetch(`${API_BASE}/api/cosponsors.js`);
+      const json = await res.json();
+      if(Array.isArray(json.data) && json.data.length > 0) {
+        console.log(`🤝 ${json.data.length} UK sponsors gevonden.`);
+        json.data.forEach(async s => {
+            const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
+            window.fetchLead(p);
+        });
+      } else {
+        console.warn("⚠️ Geen UK sponsors gevonden.");
+      }
+    } catch (err) { console.error("❌ Cosponsor Error:", err); }
+  }
+
+  async function finalizeUkShortForm() {
+    try {
+      console.log("🚀 Hoofdlead versturen...");
+      const ukBasePayload = await window.buildPayload({ cid: "5743", sid: "34", is_shortform: true });
+      await window.fetchLead(ukBasePayload);
+    } catch (err) { console.error(err); }
+
+    sessionStorage.setItem("shortFormCompleted", "true");
+    document.dispatchEvent(new Event("shortFormSubmitted"));
   }
 
   // 4. HANDLERS
@@ -221,25 +246,21 @@ if (!window.formSubmitInitialized) {
     });
     getIpOnce();
 
-    // Slide-up Logic
     const useSlideUp = form.dataset.sponsorSlideup === "true";
     const slideup = document.getElementById("sponsor-slideup");
 
     if (useSlideUp && slideup) {
       slideup.classList.add("is-visible");
-      
       if (!slideup.dataset.bound) {
          slideup.dataset.bound = "true";
-         
          const confirmBtn = document.getElementById("slideup-confirm");
          confirmBtn.addEventListener("click", async () => {
            confirmBtn.classList.add("is-loading");
            const span = confirmBtn.querySelector("span");
            if(span) span.innerText = "Please wait...";
            submitting = true;
-           
            sessionStorage.setItem("sponsorsAccepted", "true");
-           sendUkSponsorLeads(); // Background
+           sendUkSponsorLeads();
            await finalizeUkShortForm();
          });
 
@@ -259,119 +280,60 @@ if (!window.formSubmitInitialized) {
     }
   }
 
-  async function sendUkSponsorLeads() {
-    try {
-      const res = await fetch(`${API_BASE}/api/cosponsors.js`);
-      const json = await res.json();
-      if(Array.isArray(json.data)) {
-        json.data.forEach(async s => {
-           const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
-           window.fetchLead(p);
-        });
-      }
-    } catch {}
-  }
-
-  async function finalizeUkShortForm() {
-    try {
-      const ukBasePayload = await window.buildPayload({ cid: "5743", sid: "34", is_shortform: true });
-      await window.fetchLead(ukBasePayload);
-    } catch (err) { console.error(err); }
-
-    sessionStorage.setItem("shortFormCompleted", "true");
-    document.dispatchEvent(new Event("shortFormSubmitted"));
-  }
-
-  // -----------------------------------------------------------
   // 5. BOOTSTRAP
-  // -----------------------------------------------------------
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initFormLogic);
   } else {
     initFormLogic();
   }
 
-  // -----------------------------------------------------------
-  // ⚠️ CRUCIAAL: LONG FORM HANDLER (HERSTELD!)
-  // Hier worden de coreg campagnes uit de slides verstuurd.
-  // -----------------------------------------------------------
+  // 6. LONG FORM HANDLER
   document.addEventListener("click", async e => {
     if (!e.target.matches("#submit-long-form")) return;
-    
     e.preventDefault();
-    
-    // 1. Validatie
     const reqFields = ["postcode", "address1", "city", "phone1"];
     const invalid = reqFields.filter(id => !document.getElementById(id)?.value.trim());
-    
-    if (invalid.length) {
-        alert("Please fill in all required fields.");
-        return;
-    }
+    if (invalid.length) { alert("Please fill in all required fields."); return; }
     
     const phoneVal = document.getElementById("phone1").value.replace(/\D/g,"");
-    if (!/^07\d{9}$/.test(phoneVal)) {
-        alert("Please enter a valid UK mobile number.");
-        return;
-    }
+    if (!/^07\d{9}$/.test(phoneVal)) { alert("Please enter a valid UK mobile number."); return; }
 
-    // 2. Data Opslaan
     reqFields.forEach(id => sessionStorage.setItem(id, document.getElementById(id).value.trim()));
     const ad2 = document.getElementById("address2");
     if (ad2) sessionStorage.setItem("address2", ad2.value.trim());
 
-    // 3. Coreg Verzenden (uit queue)
     const pending = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
-    
-    // Async verzenden van alle pending coregs
     (async () => {
       await Promise.allSettled(pending.map(async camp => {
-         const ans = sessionStorage.getItem(`f_2014_coreg_answer_${camp.cid}`);
-         const drop = sessionStorage.getItem(`f_2575_coreg_answer_dropdown_${camp.cid}`);
-         
-         const payload = await window.buildPayload({
-           cid: camp.cid, 
-           sid: camp.sid, 
-           is_shortform: false, // Dit is belangrijk!
-           f_2014_coreg_answer: ans || undefined,
-           f_2575_coreg_answer_dropdown: drop || undefined
-         });
-         
-         return window.fetchLead(payload);
+          const ans = sessionStorage.getItem(`f_2014_coreg_answer_${camp.cid}`);
+          const drop = sessionStorage.getItem(`f_2575_coreg_answer_dropdown_${camp.cid}`);
+          const payload = await window.buildPayload({
+            cid: camp.cid, sid: camp.sid, is_shortform: false,
+            f_2014_coreg_answer: ans || undefined,
+            f_2575_coreg_answer_dropdown: drop || undefined
+          });
+          return window.fetchLead(payload);
       }));
-      
-      // Leegmaken na verzenden
       sessionStorage.removeItem("longFormCampaigns");
     })();
-
-    // 4. Navigatie triggeren
     document.dispatchEvent(new Event("longFormSubmitted"));
   });
 
-// -----------------------------------------------------------
-  // 🔹 FIXED: Sponsor Agreement (UK Inline Version)
-  // -----------------------------------------------------------
+  // 7. INLINE BUTTON HANDLER (Voor Swipe Pages)
   document.addEventListener("click", async (e) => {
-    // 1. De "Accept" button
     if (e.target.id === "accept-sponsors-btn") {
       e.preventDefault();
-      
-      // Status opslaan
+      console.log("✅ UK Sponsors accepted via inline button");
       sessionStorage.setItem("sponsorsAccepted", "true");
       
-      // Visuele feedback
       e.target.innerText = "Please wait...";
       e.target.style.opacity = "0.7";
       e.target.style.pointerEvents = "none";
 
-      console.log("✅ UK Sponsors accepted via inline button");
-
-      // 🚀 TRIGGERS: Verstuur leads en ga naar de volgende slide
-      await sendUkSponsorLeads(); // Verstuurt cosponsors op de achtergrond
-      await finalizeUkShortForm(); // Verstuurt hoofdlead en triggert 'shortFormSubmitted' event
+      await sendUkSponsorLeads();
+      await finalizeUkShortForm();
     }
 
-    // 2. De link naar de popup
     if (e.target.id === "open-sponsor-popup") {
       e.preventDefault();
     }
