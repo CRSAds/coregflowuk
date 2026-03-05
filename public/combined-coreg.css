@@ -343,7 +343,8 @@
 
   font-family: var(--form-font);
   padding: 0;
-  margin: 0 auto;
+  max-width: 480px; /* Dit trekt hem gelijk met de NL-standaard */
+  margin: 0 auto !important;
   color: var(--text-color);
 }
 
