@@ -32,22 +32,53 @@ if (!window.formSubmitInitialized) {
 
   // --- GLOBAL FUNCTIONS (Buiten handleShortForm scope voor bereikbaarheid) ---
 
-  async function sendUkSponsorLeads() {
+    async function sendUkSponsorLeads() {
     console.log("📡 UK Cosponsors ophalen...");
     try {
       const res = await fetch(`${API_BASE}/api/cosponsors.js`);
       const json = await res.json();
-      if(Array.isArray(json.data) && json.data.length > 0) {
+      
+      if (Array.isArray(json.data) && json.data.length > 0) {
         console.log(`🤝 ${json.data.length} UK sponsors gevonden.`);
-        // Wacht tot alle cosponsor calls klaar zijn
-        await Promise.allSettled(json.data.map(async s => {
+        
+        // Haal de huidige wachtrij op voor campagnes die de Long Form nodig hebben
+        const longFormQueue = JSON.parse(sessionStorage.getItem("longFormCampaigns") || "[]");
+        const directLeads = [];
+
+        for (const s of json.data) {
+          if (s.requires_long_form) {
+            // Voeg toe aan de wachtrij voor verzending na de Long Form (adres/telefoon)
+            if (!longFormQueue.some(p => p.cid === s.cid)) {
+              longFormQueue.push({ 
+                cid: s.cid, 
+                sid: s.sid, 
+                is_shortform: false // Belangrijk: dit wordt een longform lead
+              });
+            }
+            console.log(`⏳ Sponsor ${s.name} toegevoegd aan Long Form wachtrij.`);
+          } else {
+            // Geen long form nodig? Voeg toe aan de lijst voor directe verzending
+            directLeads.push(s);
+          }
+        }
+
+        // Sla de bijgewerkte wachtrij op in sessionStorage
+        sessionStorage.setItem("longFormCampaigns", JSON.stringify(longFormQueue));
+
+        // Verzend de sponsors die direct verwerkt kunnen worden (Short Form)
+        if (directLeads.length > 0) {
+          await Promise.allSettled(directLeads.map(async s => {
             const p = await window.buildPayload({ cid: s.cid, sid: s.sid, is_shortform: true });
+            console.log(`✅ Sponsor ${s.name} direct verzonden.`);
             return window.fetchLead(p);
-        }));
+          }));
+        }
       } else {
         console.warn("⚠️ Geen UK sponsors gevonden.");
       }
-    } catch (err) { console.error("❌ Cosponsor Error:", err); }
+    } catch (err) { 
+      console.error("❌ Cosponsor Error:", err); 
+    }
   }
 
   async function finalizeUkShortForm() {
