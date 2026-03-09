@@ -223,7 +223,8 @@ if (!window.formSubmitInitialized) {
       address2:   sessionStorage.getItem("address2")  || "",
       city:       sessionStorage.getItem("city")      || "",
       phone1:     sessionStorage.getItem("phone1")    || "",
-      t_id, ip,
+      t_id,
+      f_17_ipaddress: ip, // ✅ Forceer IP in de payload voor Databowl
       f_1453_campagne_url: window.location.href,
       f_55_optindate: new Date().toISOString().split(".")[0] + "+0000",
       is_shortform: campaign.is_shortform || false,
