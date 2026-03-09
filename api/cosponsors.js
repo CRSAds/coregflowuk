@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     const url = `${process.env.DIRECTUS_URL}/items/co_sponsors`
       + `?filter[is_live][_eq]=true`
       + `&filter[country][_eq]=UK`
-      + `&fields=title,description,logo,address,privacy_url,terms_url,cid,sid`
+      + `&fields=title,description,logo,address,privacy_url,terms_url,cid,sid,requires_long_form`
       + `&sort=title`;
 
     const json = await fetchWithRetry(url, {
@@ -50,7 +50,8 @@ export default async function handler(req, res) {
         url_terms: s.terms_url || "#",
         logo: logoUrl,
         cid: s.cid || "",
-        sid: s.sid || ""
+        sid: s.sid || "",
+        requires_long_form: !!s.requires_long_form // Forceer naar boolean
       };
     });
 
