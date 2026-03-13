@@ -31,15 +31,22 @@
         }
         .fl-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
         .fl-content { 
-          position: relative; background: #fff; padding: 40px; 
+          position: relative; background: #fff; 
+          padding: 24px !important; /* Gecorrigeerde padding voor balans */
           width: min(94vw, 850px); max-height: 85vh; overflow-y: auto; 
           border-radius: 12px; z-index: 2; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
           font-family: 'Inter', sans-serif; color: #333; text-align: left;
+          box-sizing: border-box !important; /* Forceert padding binnen de breedte */
         }
         .fl-close { position: absolute; top: 10px; right: 20px; font-size: 24px; border: none; background: none; cursor: pointer; color: #666; }
         
-        /* --- Content Reset --- */
-        .fl-content * { text-transform: none !important; } /* GEEN HOOFDLETTERS */
+        /* --- Content Reset & Marge Fix --- */
+        .fl-content * { 
+          text-transform: none !important; 
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          margin-right: 0 !important; /* Verwijdert overbodige ruimte rechts */
+        } 
         
         .fl-content h1, .fl-content h2, .fl-content h3, .fl-content h4 {
            font-size: 15px !important; font-weight: 700 !important; 
@@ -55,11 +62,16 @@
         }
         .fl-content strong, .fl-content b { font-weight: 700 !important; color: #000 !important; }
         
+        .fl-content ul, .fl-content ol { 
+          padding-left: 20px !important; 
+          margin-right: 0 !important;
+          padding-right: 0 !important;
+        }
+
         body.fl-locked { overflow: hidden !important; }
       `;
       document.head.appendChild(style);
     }
-
     if (!document.getElementById("fl-popup")) {
       const div = document.createElement("div");
       div.innerHTML = `
