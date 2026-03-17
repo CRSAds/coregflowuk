@@ -257,7 +257,7 @@ if (!window.formSubmitInitialized) {
     } catch (err) { return { success: false }; }
   }
 
-  // 4. HANDLERS
+// 4. HANDLERS
   let submitting = false;
 
   async function handleShortForm(e) {
@@ -310,7 +310,16 @@ if (!window.formSubmitInitialized) {
       }
     } else {
       submitting = true;
+      btn.disabled = true; // Zorg dat ze niet dubbel kunnen klikken
       btn.innerHTML = "Please wait...";
+      
+      // ✅ FIX: Controleer of de gebruiker op de vorige pagina akkoord ging
+      const accepted = sessionStorage.getItem("sponsorsAccepted") === "true";
+      if (accepted) {
+        console.log("📩 Sponsors were accepted on separate page, sending now...");
+        sendUkSponsorLeads(); // Verstuurt de leads op de achtergrond
+      }
+      
       await finalizeUkShortForm();
     }
   }
