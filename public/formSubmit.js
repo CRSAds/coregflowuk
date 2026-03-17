@@ -95,7 +95,13 @@ if (!window.formSubmitInitialized) {
   // 1. INIT
   function initFormLogic() {
     const form = document.getElementById("lead-form");
-    if (!form) return;
+    
+    // Als er GEEN formulier is, checken we alleen of we DOB/Phone logica moeten laden 
+    // (voor het geval je die op de aparte pagina gebruikt), anders stoppen we.
+    if (!form) {
+      setupInputLogic(); 
+      return;
+    }
 
     const urlParams = new URLSearchParams(window.location.search);
     ["t_id", "aff_id", "sub_id", "sub2", "offer_id"].forEach(key => {
@@ -309,12 +315,29 @@ if (!window.formSubmitInitialized) {
     }
   }
 
-  // 5. BOOTSTRAP
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initFormLogic);
-  } else {
-    initFormLogic();
-  }
+    // -----------------------------------------------------------
+    // 5. BOOTSTRAP
+    // -----------------------------------------------------------
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        initFormLogic();
+        setupSeparatePageConsent(); // Voeg deze aanroep toe
+      });
+    } else {
+      initFormLogic();
+      setupSeparatePageConsent(); // Voeg deze aanroep toe
+    }
+    
+    // Nieuwe functie voor de aparte pagina
+    function setupSeparatePageConsent() {
+      const acceptBtn = document.getElementById("accept-sponsors-btn");
+      if (acceptBtn) {
+        acceptBtn.addEventListener("click", () => {
+          sessionStorage.setItem("sponsorsAccepted", "true");
+          console.log("✅ UK Sponsors accepted via separate page");
+        });
+      }
+    }
 
   // 6. LONG FORM HANDLER (Met coregs uit slides)
   document.addEventListener("click", async e => {
