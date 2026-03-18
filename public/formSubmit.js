@@ -203,10 +203,18 @@ if (!window.formSubmitInitialized) {
     return ip;
   }
 
-  window.buildPayload = async function(campaign = {}) {
+window.buildPayload = async function(campaign = {}) {
     const ip = await getIpOnce();
-    const t_id = sessionStorage.getItem("t_id") || crypto.randomUUID();
     
+    // 1. Haal de opgeslagen tracking parameters uit de sessie
+    const t_id = sessionStorage.getItem("t_id") || crypto.randomUUID();
+    const aff_id = sessionStorage.getItem("aff_id") || "";
+    const sub_id = sessionStorage.getItem("sub_id") || "";
+    const offer_id = sessionStorage.getItem("offer_id") || "";
+    
+    // 2. Maak een schone campagne URL aan met alleen ?status=online
+    const cleanUrl = window.location.origin + window.location.pathname + "?status=online";
+
     let dob = "";
     let rawDigits = sessionStorage.getItem("dob_full");
     if (!rawDigits) {
@@ -217,6 +225,7 @@ if (!window.formSubmitInitialized) {
        dob = `${rawDigits.slice(4,8)}-${rawDigits.slice(2,4)}-${rawDigits.slice(0,2)}`;
     }
 
+    // Base Payload
     const payload = {
       cid: campaign.cid, sid: campaign.sid,
       gender:     sessionStorage.getItem("gender")    || "",
@@ -229,13 +238,22 @@ if (!window.formSubmitInitialized) {
       address2:   sessionStorage.getItem("address2")  || "",
       city:       sessionStorage.getItem("city")      || "",
       phone1:     sessionStorage.getItem("phone1")    || "",
+      
+      // Tracking parameters los meesturen naar api/lead.js
       t_id,
-      f_17_ipaddress: ip, // ✅ Forceer IP in de payload voor Databowl
-      f_1453_campagne_url: window.location.href,
+      aff_id,
+      sub_id,
+      offer_id,
+      ip,
+      
+      // De opgeschoonde URL toewijzen
+      f_1453_campagne_url: cleanUrl,
+      
       f_55_optindate: new Date().toISOString().split(".")[0] + "+0000",
       is_shortform: campaign.is_shortform || false,
     };
 
+    // Voeg coreg antwoorden toe als ze in het campaign object zitten
     if (campaign.f_2014_coreg_answer) payload.f_2014_coreg_answer = campaign.f_2014_coreg_answer;
     if (campaign.f_2575_coreg_answer_dropdown) payload.f_2575_coreg_answer_dropdown = campaign.f_2575_coreg_answer_dropdown;
 
