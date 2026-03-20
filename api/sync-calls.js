@@ -9,11 +9,12 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 export default async function handler(req, res) {
   try {
     // 1️⃣ Alleen calls met status = Stopped
-    const url =
+const url =
       `${DIRECTUS_URL}/items/calls` +
       `?filter[status][_eq]=Stopped` +
+      `&filter[calling_number][_starts_with]=44` +
       `&sort=-date_created` +
-      `&limit=500`;
+      `&limit=500`
 
     const r = await fetch(url, {
       headers: {
